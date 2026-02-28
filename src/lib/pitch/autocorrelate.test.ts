@@ -5,7 +5,9 @@ import { HIGH_STRING_DETECTION_WINDOWS } from '@/shared/constants/tuner';
 import {
   createHarmonicSignal,
   createNylonLikeSignal,
+  createOctaveBiasedSignal,
   createSineWave,
+  createVoiceLikeSignal,
   SAMPLE_RATE,
 } from '@/test/signalFactory';
 import { STANDARD_GUITAR_FREQUENCIES } from '@/test/standardTuning';
@@ -116,5 +118,43 @@ describe('autoCorrelate', () => {
       expect(refined, stringId).not.toBeNull();
       expect(refined!.frequency, stringId).toBeCloseTo(target.frequency, 0);
     }
+  });
+
+  it('recovers E4 from an octave-biased signal when expected-frequency guidance is present', () => {
+    const target = STANDARD_GUITAR_FREQUENCIES.find((item) => item.id === 'E4')!;
+    const window = HIGH_STRING_DETECTION_WINDOWS.nylon.E4!;
+    const buffer = createOctaveBiasedSignal(target.frequency);
+
+    const refined = autocorrelateDetector.detect({
+      buffer,
+      sampleRate: SAMPLE_RATE,
+      options: {
+        captureProfile: CAPTURE_PROFILES.estrito,
+        searchMinFrequency: window.minFrequency,
+        searchMaxFrequency: window.maxFrequency,
+        confidenceBias: window.confidenceBonus,
+        expectedFrequency: target.frequency,
+        expectedToleranceRatio: window.expectedToleranceRatio,
+        expectedBonus: window.expectedBonus,
+      },
+    });
+
+    expect(refined).not.toBeNull();
+    expect(refined!.frequency).toBeGreaterThan(310);
+    expect(refined!.frequency).toBeLessThan(345);
+  });
+
+  it('supports voice-like monophonic signals within the expanded range', () => {
+    const result = autocorrelateDetector.detect({
+      buffer: createVoiceLikeSignal(392),
+      sampleRate: SAMPLE_RATE,
+      options: {
+        captureProfile: CAPTURE_PROFILES.balanceado,
+      },
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.frequency).toBeGreaterThan(380);
+    expect(result!.frequency).toBeLessThan(404);
   });
 });

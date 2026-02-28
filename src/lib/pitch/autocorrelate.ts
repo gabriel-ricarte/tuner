@@ -7,7 +7,7 @@ type CorrelationResult = {
 };
 
 const MIN_FREQUENCY = 70;
-const MAX_FREQUENCY = 420;
+const MAX_FREQUENCY = 520;
 const MIN_CORRELATION = 0.78;
 const PEAK_SELECTION_RATIO = 0.92;
 
@@ -58,7 +58,7 @@ export function autoCorrelate(
     return null;
   }
 
-  const frequency = sampleRate / refinedPeriod;
+  let frequency = sampleRate / refinedPeriod;
   let confidence = Math.max(
     0,
     Math.min(1, (selectedPeak.correlation - MIN_CORRELATION) / (1 - MIN_CORRELATION)),
@@ -67,7 +67,21 @@ export function autoCorrelate(
   confidence = Math.max(0, Math.min(1, confidence + (options?.confidenceBias ?? 0)));
 
   if (options?.expectedFrequency) {
-    const distanceRatio = Math.abs(frequency - options.expectedFrequency) / options.expectedFrequency;
+    const correctedFrequency = resolveExpectedFrequencyCandidate(
+      frequency,
+      options.expectedFrequency,
+      minFrequency,
+      maxFrequency,
+      options.expectedToleranceRatio,
+    );
+
+    if (correctedFrequency !== null) {
+      frequency = correctedFrequency;
+      confidence = Math.min(1, confidence + (options.expectedBonus ?? 0.06) * 0.6);
+    }
+
+    const distanceRatio =
+      Math.abs(frequency - options.expectedFrequency) / options.expectedFrequency;
     const toleranceRatio = options.expectedToleranceRatio ?? 0.18;
 
     if (distanceRatio <= toleranceRatio) {
@@ -94,6 +108,47 @@ export function autoCorrelate(
     frequency,
     confidence,
   };
+}
+
+function resolveExpectedFrequencyCandidate(
+  detectedFrequency: number,
+  expectedFrequency: number,
+  minFrequency: number,
+  maxFrequency: number,
+  toleranceRatio = 0.18,
+) {
+  const candidates = [detectedFrequency, detectedFrequency * 2, detectedFrequency * 3, detectedFrequency * 4];
+  let bestCandidate: number | null = null;
+  let bestDistanceRatio = Number.POSITIVE_INFINITY;
+
+  for (const candidate of candidates) {
+    if (candidate < minFrequency || candidate > maxFrequency) {
+      continue;
+    }
+
+    const distanceRatio = Math.abs(candidate - expectedFrequency) / expectedFrequency;
+
+    if (distanceRatio < bestDistanceRatio) {
+      bestDistanceRatio = distanceRatio;
+      bestCandidate = candidate;
+    }
+  }
+
+  if (bestCandidate === null) {
+    return null;
+  }
+
+  const directDistanceRatio = Math.abs(detectedFrequency - expectedFrequency) / expectedFrequency;
+
+  if (
+    bestCandidate !== detectedFrequency &&
+    bestDistanceRatio <= toleranceRatio &&
+    directDistanceRatio > toleranceRatio * 1.6
+  ) {
+    return bestCandidate;
+  }
+
+  return null;
 }
 
 function selectPeak(correlations: CorrelationResult[], best: CorrelationResult) {
