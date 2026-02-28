@@ -358,6 +358,7 @@ button {
   grid-template-columns: repeat(3, 1fr);
 }
 
+.toolbar-group--algorithm .toolbar-toggle--dual,
 .toolbar-group--strings .toolbar-toggle--dual {
   grid-template-columns: repeat(2, 1fr);
 }

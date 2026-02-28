@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { CAPTURE_PROFILES, DEFAULT_CAPTURE_PROFILE_ID } from '@/lib/audio/captureProfiles';
 import { prepareAudioFrame } from '@/lib/audio/frameAnalysis';
 import { createMicrophoneController } from '@/lib/audio/microphone';
+import { DEFAULT_PITCH_DETECTOR_ID } from '@/lib/pitch/detectors/registry';
 import { detectPitch } from '@/lib/pitch/detectPitch';
 import {
   centsOffFromPitch,
@@ -36,6 +37,7 @@ import {
 import { translations } from '@/lib/i18n/translations';
 import type { Locale } from '@/shared/types/i18n';
 import type { CaptureProfileId } from '@/shared/types/audio';
+import type { PitchDetectorId } from '@/shared/types/pitch';
 import type {
   DetectedNote,
   GuitarStringId,
@@ -82,12 +84,15 @@ export function useTuner(locale: Locale): TunerHookResult {
   const initialStringId = preferences.targetStringId ?? DEFAULT_TARGET_STRING_ID;
   const initialCaptureProfileId = preferences.captureProfileId ?? DEFAULT_CAPTURE_PROFILE_ID;
   const initialStringTypeId = preferences.stringTypeId ?? DEFAULT_STRING_TYPE_ID;
+  const initialPitchDetectorId = preferences.pitchDetectorId ?? DEFAULT_PITCH_DETECTOR_ID;
   const [status, setStatus] = useState<TunerStatus>('idle');
   const [mode, setMode] = useState<TunerMode>(initialMode);
   const [manualStringId, setManualStringId] = useState<GuitarStringId>(initialStringId);
   const [captureProfileId, setCaptureProfileId] =
     useState<CaptureProfileId>(initialCaptureProfileId);
   const [stringTypeId, setStringTypeId] = useState<StringTypeId>(initialStringTypeId);
+  const [pitchDetectorId, setPitchDetectorId] =
+    useState<PitchDetectorId>(initialPitchDetectorId);
   const [snapshot, setSnapshot] = useState<TunerSnapshot>(
     buildInitialSnapshot(initialStringId),
   );
@@ -113,8 +118,9 @@ export function useTuner(locale: Locale): TunerHookResult {
       targetStringId: manualStringId,
       captureProfileId,
       stringTypeId,
+      pitchDetectorId,
     });
-  }, [captureProfileId, manualStringId, mode, stringTypeId]);
+  }, [captureProfileId, manualStringId, mode, pitchDetectorId, stringTypeId]);
 
   useEffect(() => {
     consecutiveGoodFrames.current = 0;
@@ -245,7 +251,7 @@ export function useTuner(locale: Locale): TunerHookResult {
         frameQuality: preparedFrame.quality,
         previousFrequency: lastValidSnapshot.current.frequency,
       },
-    });
+    }, pitchDetectorId);
     const refinementHints = resolveRefinementHints(
       mode,
       manualStringId,
@@ -268,7 +274,7 @@ export function useTuner(locale: Locale): TunerHookResult {
               expectedToleranceRatio: refinementHints.expectedToleranceRatio,
               expectedBonus: refinementHints.expectedBonus,
             },
-          })
+          }, pitchDetectorId)
         : null;
     const detection = refinedDetection ?? broadDetection;
     const minimumConfidence = hasRecentReading
@@ -397,6 +403,7 @@ export function useTuner(locale: Locale): TunerHookResult {
     mode,
     captureProfileId,
     stringTypeId,
+    pitchDetectorId,
     frequency: snapshot.frequency,
     note: snapshot.note,
     cents: snapshot.cents,
@@ -409,6 +416,7 @@ export function useTuner(locale: Locale): TunerHookResult {
     stop,
     setCaptureProfile: setCaptureProfileId,
     setStringType: setStringTypeId,
+    setPitchDetector: setPitchDetectorId,
     setTargetString,
     setMode
   };

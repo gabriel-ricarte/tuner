@@ -1,5 +1,6 @@
 import type { Locale } from '@/shared/types/i18n';
 import type { CaptureProfileId } from '@/shared/types/audio';
+import type { PitchDetectorId } from '@/shared/types/pitch';
 
 type TranslationDictionary = {
   languageShort: string;
@@ -16,6 +17,7 @@ type TranslationDictionary = {
     cents: string;
     language: string;
     captureProfile: string;
+    pitchDetector: string;
     stringType: string;
     install: string;
     tuningMode: string;
@@ -45,6 +47,7 @@ type TranslationDictionary = {
     close: string;
   };
   profiles: Record<CaptureProfileId, string>;
+  pitchDetectors: Record<PitchDetectorId, string>;
   stringTypes: {
     steel: string;
     nylon: string;
@@ -77,6 +80,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
       cents: 'cents',
       language: 'Language',
       captureProfile: 'Capture',
+      pitchDetector: 'Algorithm',
       stringType: 'Strings',
       install: 'Install',
       tuningMode: 'Tuning mode',
@@ -110,6 +114,10 @@ export const translations: Record<Locale, TranslationDictionary> = {
       balanceado: 'Balanced',
       estrito: 'Strict',
     },
+    pitchDetectors: {
+      'autocorrelate-stable': 'Stable',
+      'autocorrelate-classic': 'Classic',
+    },
     stringTypes: {
       steel: 'Steel',
       nylon: 'Nylon',
@@ -141,6 +149,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
       cents: 'cent',
       language: 'Idioma',
       captureProfile: 'Captacao',
+      pitchDetector: 'Algoritmo',
       stringType: 'Cordas',
       install: 'Instalar',
       tuningMode: 'Modo de afinacao',
@@ -174,6 +183,10 @@ export const translations: Record<Locale, TranslationDictionary> = {
       balanceado: 'Balanceado',
       estrito: 'Estrito',
     },
+    pitchDetectors: {
+      'autocorrelate-stable': 'Estavel',
+      'autocorrelate-classic': 'Classico',
+    },
     stringTypes: {
       steel: 'Aco',
       nylon: 'Nylon',
@@ -206,6 +219,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
       cents: 'cent',
       language: 'Idioma',
       captureProfile: 'Captacion',
+      pitchDetector: 'Algoritmo',
       stringType: 'Cuerdas',
       install: 'Instalar',
       tuningMode: 'Modo de afinacion',
@@ -238,6 +252,10 @@ export const translations: Record<Locale, TranslationDictionary> = {
       sensivel: 'Sensible',
       balanceado: 'Balanceado',
       estrito: 'Estricto',
+    },
+    pitchDetectors: {
+      'autocorrelate-stable': 'Estable',
+      'autocorrelate-classic': 'Clasico',
     },
     stringTypes: {
       steel: 'Acero',

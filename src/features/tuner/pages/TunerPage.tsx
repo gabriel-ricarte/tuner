@@ -35,7 +35,11 @@ export function TunerPage() {
           setInstallSheetOpen(true);
         }}
         onLocaleChange={setLocale}
+        onPitchDetectorChange={tuner.setPitchDetector}
         onStringTypeChange={tuner.setStringType}
+        pitchDetectorId={tuner.pitchDetectorId}
+        pitchDetectorLabel={t.labels.pitchDetector}
+        pitchDetectorNames={t.pitchDetectors}
         profileNames={t.profiles}
         showInstall={pwaInstall.canInstall}
         stringTypeId={tuner.stringTypeId}

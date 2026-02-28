@@ -1,4 +1,5 @@
 import type { CaptureProfileId } from '@/shared/types/audio';
+import type { PitchDetectorId } from '@/shared/types/pitch';
 
 export type TunerStatus =
   | 'idle'
@@ -41,6 +42,7 @@ export type TunerPreferences = {
   targetStringId: GuitarStringId;
   captureProfileId: CaptureProfileId;
   stringTypeId: StringTypeId;
+  pitchDetectorId: PitchDetectorId;
 };
 
 export type TunerHookResult = {
@@ -48,6 +50,7 @@ export type TunerHookResult = {
   mode: TunerMode;
   captureProfileId: CaptureProfileId;
   stringTypeId: StringTypeId;
+  pitchDetectorId: PitchDetectorId;
   frequency: number | null;
   note: DetectedNote | null;
   cents: number | null;
@@ -60,6 +63,7 @@ export type TunerHookResult = {
   stop: () => void;
   setCaptureProfile: (profileId: CaptureProfileId) => void;
   setStringType: (stringTypeId: StringTypeId) => void;
+  setPitchDetector: (pitchDetectorId: PitchDetectorId) => void;
   setTargetString: (value: GuitarStringId | null) => void;
   setMode: (mode: TunerMode) => void;
 };
