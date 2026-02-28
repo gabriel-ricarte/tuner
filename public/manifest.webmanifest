@@ -1,0 +1,24 @@
+{
+  "name": "Afinador",
+  "short_name": "Afinador",
+  "description": "Client-side guitar tuner PWA for standard 6-string tuning.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1419",
+  "theme_color": "#15242c",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
