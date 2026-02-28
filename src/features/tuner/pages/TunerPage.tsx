@@ -1,4 +1,5 @@
 import { InstallPwaSheet } from '@/components/InstallPwaSheet';
+import { SettingsGlassSheet } from '@/components/SettingsGlassSheet';
 import { useI18n } from '@/lib/i18n/useI18n';
 import { TopToolbar } from '@/components/TopToolbar';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -14,6 +15,7 @@ export function TunerPage() {
   const tuner = useTuner(locale);
   const pwaInstall = usePwaInstall();
   const [installSheetOpen, setInstallSheetOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const isListening =
     tuner.status === 'listening' ||
     tuner.status === 'detecting' ||
@@ -24,23 +26,14 @@ export function TunerPage() {
     <main className="page-shell">
       <TopToolbar
         appName={t.labels.appName}
-        captureProfileId={tuner.captureProfileId}
-        captureProfileLabel={t.labels.captureProfile}
         installLabel={t.labels.install}
-        languageLabel={t.labels.language}
-        locale={locale}
-        onCaptureProfileChange={tuner.setCaptureProfile}
+        settingsLabel={t.labels.settings}
         onInstallClick={() => {
           pwaInstall.resetDismiss();
           setInstallSheetOpen(true);
         }}
-        onLocaleChange={setLocale}
-        onStringTypeChange={tuner.setStringType}
-        profileNames={t.profiles}
+        onSettingsClick={() => setSettingsOpen(true)}
         showInstall={pwaInstall.canInstall}
-        stringTypeId={tuner.stringTypeId}
-        stringTypeLabel={t.labels.stringType}
-        stringTypeNames={t.stringTypes}
       />
 
       <section className="display-stage">
@@ -103,6 +96,23 @@ export function TunerPage() {
         }}
         open={installSheetOpen}
         text={t.install}
+      />
+      <SettingsGlassSheet
+        captureProfileId={tuner.captureProfileId}
+        captureProfileLabel={t.labels.captureProfile}
+        closeLabel={t.install.close}
+        languageLabel={t.labels.language}
+        locale={locale}
+        onCaptureProfileChange={tuner.setCaptureProfile}
+        onClose={() => setSettingsOpen(false)}
+        onLocaleChange={setLocale}
+        onStringTypeChange={tuner.setStringType}
+        open={settingsOpen}
+        profileNames={t.profiles}
+        stringTypeId={tuner.stringTypeId}
+        stringTypeLabel={t.labels.stringType}
+        stringTypeNames={t.stringTypes}
+        title={t.labels.settings}
       />
     </main>
   );

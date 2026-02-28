@@ -25,13 +25,21 @@
 html,
 body,
 #root {
+  width: 100%;
+  height: 100%;
   min-height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
+  min-height: 100dvh;
   overscroll-behavior-y: none;
+  position: fixed;
+  inset: 0;
+  touch-action: manipulation;
 }
 
 button,
@@ -47,6 +55,8 @@ button {
 .page-shell {
   width: min(100%, 28rem);
   margin: 0 auto;
+  height: 100vh;
+  height: 100dvh;
   padding:
     max(0.8rem, env(safe-area-inset-top))
     0.8rem
@@ -54,13 +64,15 @@ button {
   display: grid;
   gap: 0.82rem;
   min-height: 100vh;
+  min-height: 100dvh;
   align-content: start;
+  overflow: hidden;
 }
 
 .top-toolbar {
   display: grid;
-  gap: 0.5rem;
-  padding: 0.5rem 0.55rem 0.55rem;
+  gap: 0.3rem;
+  padding: 0.55rem 0.6rem;
   background: linear-gradient(180deg, rgba(15, 20, 26, 0.84), rgba(12, 17, 22, 0.68));
   border: 1px solid rgba(245, 243, 234, 0.05);
   border-radius: 1.35rem;
@@ -95,15 +107,20 @@ button {
   box-shadow: 0 0 12px rgba(255, 210, 141, 0.42);
 }
 
-.top-toolbar__settings {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 0.42rem;
-  align-items: start;
+.top-toolbar__appbar > :last-child {
+  margin-left: auto;
 }
 
-.top-toolbar__settings .toolbar-group--profile {
-  grid-column: 1 / -1;
+.toolbar-action {
+  min-height: 2.05rem;
+  padding: 0.48rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(245, 243, 234, 0.9);
+  border: 1px solid rgba(245, 243, 234, 0.08);
+  backdrop-filter: blur(18px);
+  font-size: 0.76rem;
+  white-space: nowrap;
 }
 
 .display-stage {
@@ -396,89 +413,6 @@ button {
   gap: 0.58rem;
 }
 
-.debug-panel {
-  display: grid;
-  gap: 0.45rem;
-  padding: 0.7rem 0.8rem;
-  border-radius: 1rem;
-  background: rgba(8, 12, 15, 0.76);
-  border: 1px solid rgba(245, 243, 234, 0.05);
-}
-
-.debug-panel__title {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.debug-panel__grid {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.18rem 0.55rem;
-  font-size: 0.75rem;
-}
-
-.debug-panel__grid span {
-  color: var(--text-muted);
-}
-
-.debug-panel__grid strong {
-  font-family: Consolas, "Courier New", monospace;
-  font-weight: 600;
-}
-
-.debug-panel__events {
-  display: grid;
-  gap: 0.35rem;
-  margin-top: 0.2rem;
-}
-
-.debug-panel__events-label {
-  color: var(--text-muted);
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.debug-panel__events-list {
-  display: grid;
-  gap: 0.35rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.debug-panel__events-list li {
-  display: grid;
-  gap: 0.1rem;
-  padding: 0.45rem 0.55rem;
-  border-radius: 0.78rem;
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(245, 243, 234, 0.04);
-}
-
-.debug-panel__events-list strong,
-.debug-panel__events-list span,
-.debug-panel__events-list code {
-  font-size: 0.72rem;
-}
-
-.debug-panel__events-list strong {
-  font-family: Consolas, "Courier New", monospace;
-  font-weight: 700;
-}
-
-.debug-panel__events-list span {
-  color: var(--text-muted);
-}
-
-.debug-panel__events-list code {
-  color: #d9e7f2;
-  white-space: normal;
-}
-
 .toolbar-group {
   display: grid;
   gap: 0.1rem;
@@ -609,14 +543,65 @@ button {
   .page-shell {
     padding-top: max(1rem, env(safe-area-inset-top));
   }
+}
 
-  .top-toolbar__settings {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+.glass-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  align-items: end;
+  padding: 1rem 0.8rem max(1rem, env(safe-area-inset-bottom));
+  background: rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(10px);
+  z-index: 30;
+}
 
-  .top-toolbar__settings .toolbar-group--profile {
-    grid-column: auto;
-  }
+.glass-sheet {
+  width: min(100%, 28rem);
+  margin: 0 auto;
+  display: grid;
+  gap: 0.9rem;
+  padding: 0.8rem 0.85rem 1rem;
+  border-radius: 1.75rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.04)),
+    rgba(12, 18, 24, 0.88);
+  border: 1px solid rgba(245, 243, 234, 0.1);
+  box-shadow: 0 28px 60px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(24px) saturate(1.2);
+}
+
+.glass-sheet__handle {
+  width: 2.8rem;
+  height: 0.28rem;
+  margin: 0 auto;
+  border-radius: 999px;
+  background: rgba(245, 243, 234, 0.24);
+}
+
+.glass-sheet__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.glass-sheet__header strong {
+  font-size: 0.92rem;
+}
+
+.glass-sheet__close {
+  min-height: 1.95rem;
+  padding: 0.42rem 0.72rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  border: 1px solid rgba(245, 243, 234, 0.08);
+}
+
+.glass-sheet__content {
+  display: grid;
+  gap: 0.68rem;
 }
 
 .install-sheet {

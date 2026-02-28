@@ -12,13 +12,14 @@ type TranslationDictionary = {
     start: string;
     stop: string;
   };
-  labels: {
-    appName: string;
-    cents: string;
-    language: string;
-    captureProfile: string;
-    pitchDetector: string;
-    stringType: string;
+    labels: {
+      appName: string;
+      cents: string;
+      language: string;
+      settings: string;
+      captureProfile: string;
+      pitchDetector: string;
+      stringType: string;
     install: string;
     tuningMode: string;
     targetString: string;
@@ -106,6 +107,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
       appName: 'Tuner',
       cents: 'cents',
       language: 'Language',
+      settings: 'Controls',
       captureProfile: 'Capture',
       pitchDetector: 'Algorithm',
       stringType: 'Strings',
@@ -202,6 +204,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
       appName: 'Afinador',
       cents: 'cent',
       language: 'Idioma',
+      settings: 'Controles',
       captureProfile: 'Captacao',
       pitchDetector: 'Algoritmo',
       stringType: 'Cordas',
@@ -299,6 +302,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
       appName: 'Afinador',
       cents: 'cent',
       language: 'Idioma',
+      settings: 'Controles',
       captureProfile: 'Captacion',
       pitchDetector: 'Algoritmo',
       stringType: 'Cuerdas',
