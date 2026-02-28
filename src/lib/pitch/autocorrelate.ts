@@ -1,8 +1,5 @@
-import type {
-  CaptureProfileConfig,
-  FrameQuality,
-  PitchDetectionResult,
-} from '@/shared/types/audio';
+import type { PitchDetectionResult } from '@/shared/types/audio';
+import type { PitchDetectorOptions } from '@/lib/pitch/detectors/types';
 
 type CorrelationResult = {
   correlation: number;
@@ -12,21 +9,12 @@ type CorrelationResult = {
 const MIN_FREQUENCY = 70;
 const MAX_FREQUENCY = 420;
 const MIN_CORRELATION = 0.78;
+const PEAK_SELECTION_RATIO = 0.92;
 
 export function autoCorrelate(
   buffer: Float32Array,
   sampleRate: number,
-  options?: {
-    captureProfile?: Pick<CaptureProfileConfig, 'maxFrequencyJumpRatio'>;
-    frameQuality?: FrameQuality;
-    previousFrequency?: number | null;
-    searchMinFrequency?: number;
-    searchMaxFrequency?: number;
-    confidenceBias?: number;
-    expectedFrequency?: number;
-    expectedToleranceRatio?: number;
-    expectedBonus?: number;
-  },
+  options?: PitchDetectorOptions,
 ): PitchDetectionResult | null {
   if (options?.frameQuality) {
     if (!options.frameQuality.hasMinimumSignal || options.frameQuality.hasClipping) {
@@ -44,27 +32,27 @@ export function autoCorrelate(
   const maxFrequency = options?.searchMaxFrequency ?? MAX_FREQUENCY;
   const minPeriod = Math.floor(sampleRate / maxFrequency);
   const maxPeriod = Math.floor(sampleRate / minFrequency);
-  let best: CorrelationResult | null = null;
+  const correlations: CorrelationResult[] = [];
 
   for (let period = minPeriod; period <= maxPeriod; period += 1) {
-    let difference = 0;
-
-    for (let index = 0; index < maxPeriod; index += 1) {
-      difference += Math.abs(buffer[index] - buffer[index + period]);
-    }
-
-    const correlation = 1 - difference / maxPeriod;
-
-    if (best === null || correlation > best.correlation) {
-      best = { correlation, period };
-    }
+    correlations.push({
+      correlation: correlationAtOffset(buffer, period),
+      period,
+    });
   }
+
+  const best = correlations.reduce<CorrelationResult | null>(
+    (currentBest, current) =>
+      currentBest === null || current.correlation > currentBest.correlation ? current : currentBest,
+    null,
+  );
 
   if (best === null || best.correlation < MIN_CORRELATION) {
     return null;
   }
 
-  const refinedPeriod = refinePeak(buffer, best.period);
+  const selectedPeak = selectPeak(correlations, best);
+  const refinedPeriod = refinePeak(buffer, selectedPeak.period);
 
   if (refinedPeriod <= 0) {
     return null;
@@ -73,7 +61,7 @@ export function autoCorrelate(
   const frequency = sampleRate / refinedPeriod;
   let confidence = Math.max(
     0,
-    Math.min(1, (best.correlation - MIN_CORRELATION) / (1 - MIN_CORRELATION)),
+    Math.min(1, (selectedPeak.correlation - MIN_CORRELATION) / (1 - MIN_CORRELATION)),
   );
 
   confidence = Math.max(0, Math.min(1, confidence + (options?.confidenceBias ?? 0)));
@@ -106,6 +94,29 @@ export function autoCorrelate(
     frequency,
     confidence,
   };
+}
+
+function selectPeak(correlations: CorrelationResult[], best: CorrelationResult) {
+  const minimumAcceptedCorrelation = Math.max(
+    MIN_CORRELATION,
+    best.correlation * PEAK_SELECTION_RATIO,
+  );
+  const localPeaks = correlations.filter((current, index, values) => {
+    const previous = values[index - 1];
+    const next = values[index + 1];
+
+    return (
+      previous !== undefined &&
+      next !== undefined &&
+      current.correlation > previous.correlation &&
+      current.correlation >= next.correlation
+    );
+  });
+
+  return (
+    localPeaks.find((peak) => peak.correlation >= minimumAcceptedCorrelation) ??
+    best
+  );
 }
 
 function calculateRms(buffer: Float32Array) {

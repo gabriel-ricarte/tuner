@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { CAPTURE_PROFILES, DEFAULT_CAPTURE_PROFILE_ID } from '@/lib/audio/captureProfiles';
 import { prepareAudioFrame } from '@/lib/audio/frameAnalysis';
 import { createMicrophoneController } from '@/lib/audio/microphone';
-import { autoCorrelate } from '@/lib/pitch/autocorrelate';
+import { detectPitch } from '@/lib/pitch/detectPitch';
 import {
   centsOffFromPitch,
   createDetectedNote,
@@ -191,14 +191,6 @@ export function useTuner(locale: Locale): TunerHookResult {
       : captureProfile.entryRms;
     const preparedFrame = prepareAudioFrame(analysis.buffer, captureProfile);
     const signalLevel = preparedFrame.quality.rms;
-    const detectionHints = resolveDetectionHints(
-      mode,
-      manualStringId,
-      stringTypeId,
-      smoothedFrequency.current,
-      lastValidSnapshot.current.targetString?.id ?? null,
-    );
-
     if (
       signalLevel < minimumSignalLevel ||
       preparedFrame.quality.hasClipping ||
@@ -245,17 +237,40 @@ export function useTuner(locale: Locale): TunerHookResult {
 
     weakSignalFrames.current = 0;
 
-    const detection = autoCorrelate(preparedFrame.buffer, analysis.sampleRate, {
-      captureProfile,
-      frameQuality: preparedFrame.quality,
-      previousFrequency: lastValidSnapshot.current.frequency,
-      searchMinFrequency: detectionHints.minFrequency,
-      searchMaxFrequency: detectionHints.maxFrequency,
-      confidenceBias: detectionHints.confidenceBias,
-      expectedFrequency: detectionHints.expectedFrequency,
-      expectedToleranceRatio: detectionHints.expectedToleranceRatio,
-      expectedBonus: detectionHints.expectedBonus,
+    const broadDetection = detectPitch({
+      buffer: preparedFrame.buffer,
+      sampleRate: analysis.sampleRate,
+      options: {
+        captureProfile,
+        frameQuality: preparedFrame.quality,
+        previousFrequency: lastValidSnapshot.current.frequency,
+      },
     });
+    const refinementHints = resolveRefinementHints(
+      mode,
+      manualStringId,
+      stringTypeId,
+      broadDetection?.frequency ?? null,
+    );
+    const refinedDetection =
+      broadDetection !== null && refinementHints !== null
+        ? detectPitch({
+            buffer: preparedFrame.buffer,
+            sampleRate: analysis.sampleRate,
+            options: {
+              captureProfile,
+              frameQuality: preparedFrame.quality,
+              previousFrequency: lastValidSnapshot.current.frequency,
+              searchMinFrequency: refinementHints.minFrequency,
+              searchMaxFrequency: refinementHints.maxFrequency,
+              confidenceBias: refinementHints.confidenceBias,
+              expectedFrequency: refinementHints.expectedFrequency,
+              expectedToleranceRatio: refinementHints.expectedToleranceRatio,
+              expectedBonus: refinementHints.expectedBonus,
+            },
+          })
+        : null;
+    const detection = refinedDetection ?? broadDetection;
     const minimumConfidence = hasRecentReading
       ? HOLD_DETECTION_CONFIDENCE
       : MIN_DETECTION_CONFIDENCE;
@@ -543,61 +558,36 @@ function retainSmoothedFrequency(
     lastValidFrequency * (1 - SMOOTHED_FREQUENCY_DECAY);
 }
 
-function resolveDetectionHints(
+function resolveRefinementHints(
   mode: TunerMode,
   manualStringId: GuitarStringId,
   stringTypeId: StringTypeId,
-  smoothedFrequency: number | null,
-  lastTargetStringId: GuitarStringId | null,
+  detectedFrequency: number | null,
 ) {
-  const referenceStringId = getReferenceStringId(
-    mode,
-    manualStringId,
-    smoothedFrequency,
-    lastTargetStringId,
-  );
+  const referenceStringId =
+    mode === 'manual'
+      ? manualStringId
+      : detectedFrequency === null
+        ? null
+        : getNearestGuitarString(detectedFrequency).id;
 
   if (referenceStringId === null || !HIGH_GUITAR_STRING_IDS.includes(referenceStringId)) {
-    return {
-      minFrequency: undefined,
-      maxFrequency: undefined,
-      confidenceBias: 0,
-      expectedFrequency: undefined,
-      expectedToleranceRatio: undefined,
-      expectedBonus: undefined,
-    };
+    return null;
   }
 
   const window = HIGH_STRING_DETECTION_WINDOWS[stringTypeId][referenceStringId];
   const targetString = GUITAR_STRING_MAP[referenceStringId];
 
-  return {
-    minFrequency: window?.minFrequency,
-    maxFrequency: window?.maxFrequency,
-    confidenceBias: window?.confidenceBonus ?? 0,
-    expectedFrequency: targetString.frequency,
-    expectedToleranceRatio: window?.expectedToleranceRatio,
-    expectedBonus: window?.expectedBonus,
-  };
-}
-
-function getReferenceStringId(
-  mode: TunerMode,
-  manualStringId: GuitarStringId,
-  smoothedFrequency: number | null,
-  lastTargetStringId: GuitarStringId | null,
-) {
-  if (mode === 'manual') {
-    return manualStringId;
-  }
-
-  if (lastTargetStringId !== null) {
-    return lastTargetStringId;
-  }
-
-  if (smoothedFrequency === null) {
+  if (window === undefined) {
     return null;
   }
 
-  return getNearestGuitarString(smoothedFrequency).id;
+  return {
+    minFrequency: window.minFrequency,
+    maxFrequency: window.maxFrequency,
+    confidenceBias: window.confidenceBonus,
+    expectedFrequency: targetString.frequency,
+    expectedToleranceRatio: window.expectedToleranceRatio,
+    expectedBonus: window.expectedBonus,
+  };
 }

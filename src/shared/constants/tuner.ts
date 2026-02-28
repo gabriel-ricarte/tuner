@@ -22,6 +22,7 @@ type HighStringDetectionWindow = {
   minFrequency: number;
   maxFrequency: number;
   confidenceBonus: number;
+  activationToleranceRatio: number;
   expectedToleranceRatio: number;
   expectedBonus: number;
 };
@@ -35,6 +36,7 @@ export const HIGH_STRING_DETECTION_WINDOWS: Record<
       minFrequency: 182,
       maxFrequency: 212,
       confidenceBonus: 0.04,
+      activationToleranceRatio: 0.22,
       expectedToleranceRatio: 0.14,
       expectedBonus: 0.06,
     },
@@ -42,6 +44,7 @@ export const HIGH_STRING_DETECTION_WINDOWS: Record<
       minFrequency: 224,
       maxFrequency: 274,
       confidenceBonus: 0.06,
+      activationToleranceRatio: 0.2,
       expectedToleranceRatio: 0.12,
       expectedBonus: 0.08,
     },
@@ -49,6 +52,7 @@ export const HIGH_STRING_DETECTION_WINDOWS: Record<
       minFrequency: 300,
       maxFrequency: 355,
       confidenceBonus: 0.08,
+      activationToleranceRatio: 0.18,
       expectedToleranceRatio: 0.1,
       expectedBonus: 0.1,
     },
@@ -58,6 +62,7 @@ export const HIGH_STRING_DETECTION_WINDOWS: Record<
       minFrequency: 180,
       maxFrequency: 214,
       confidenceBonus: 0.05,
+      activationToleranceRatio: 0.24,
       expectedToleranceRatio: 0.16,
       expectedBonus: 0.08,
     },
@@ -65,6 +70,7 @@ export const HIGH_STRING_DETECTION_WINDOWS: Record<
       minFrequency: 220,
       maxFrequency: 278,
       confidenceBonus: 0.07,
+      activationToleranceRatio: 0.22,
       expectedToleranceRatio: 0.15,
       expectedBonus: 0.1,
     },
@@ -72,6 +78,7 @@ export const HIGH_STRING_DETECTION_WINDOWS: Record<
       minFrequency: 296,
       maxFrequency: 360,
       confidenceBonus: 0.09,
+      activationToleranceRatio: 0.2,
       expectedToleranceRatio: 0.13,
       expectedBonus: 0.12,
     },
