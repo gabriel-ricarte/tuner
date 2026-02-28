@@ -175,6 +175,8 @@ export function useTuner(locale: Locale): TunerHookResult {
   const consecutiveBadFrames = useRef(0);
   const debugSignature = useRef<string>('idle');
   const debugLogTimestamp = useRef(0);
+  const debugLogBurstCount = useRef(0);
+  const debugLogCooldownUntil = useRef(0);
   const captureProfile = CAPTURE_PROFILES[captureProfileId];
 
   useEffect(() => {
@@ -372,7 +374,7 @@ export function useTuner(locale: Locale): TunerHookResult {
         stage: hasRecentReading || hasLogicalRetention ? 'holding' : 'frame-rejected',
         rejectionReason,
         timestamp: now,
-      }, debugLogTimestamp);
+      }, debugLogTimestamp, debugLogBurstCount, debugLogCooldownUntil);
 
       if (
         weakSignalFrames.current >= NO_SIGNAL_FRAME_LIMIT ||
@@ -530,7 +532,7 @@ export function useTuner(locale: Locale): TunerHookResult {
         stage: hasRecentReading || hasLogicalRetention ? 'holding' : 'detecting',
         rejectionReason,
         timestamp: now,
-      }, debugLogTimestamp);
+      }, debugLogTimestamp, debugLogBurstCount, debugLogCooldownUntil);
       if (hasRecentReading) {
         setStatus('detecting');
         setSnapshot(buildHeldSnapshot(lastValidSnapshot.current, smoothedFrequency.current));
@@ -593,7 +595,7 @@ export function useTuner(locale: Locale): TunerHookResult {
         stage: 'detecting',
         rejectionReason: 'waiting-good-frames',
         timestamp: now,
-      }, debugLogTimestamp);
+      }, debugLogTimestamp, debugLogBurstCount, debugLogCooldownUntil);
       setStatus('detecting');
       animationFrameId.current = requestAnimationFrame(updateFrame);
       return;
@@ -674,7 +676,7 @@ export function useTuner(locale: Locale): TunerHookResult {
       stage: 'accepted',
       rejectionReason: null,
       timestamp: now,
-    }, debugLogTimestamp);
+    }, debugLogTimestamp, debugLogBurstCount, debugLogCooldownUntil);
     setStatus('listening');
     setErrorKey(null);
     setSnapshot(nextSnapshot);
@@ -775,13 +777,29 @@ function logDebugFrame(
     timestamp: number;
   },
   lastLogTimestamp: MutableRefObject<number>,
+  burstCount: MutableRefObject<number>,
+  cooldownUntil: MutableRefObject<number>,
 ) {
-  if (payload.timestamp - lastLogTimestamp.current < 750) {
+  const burstIntervalMs = 650;
+  const maxBurstLogs = 5;
+  const cooldownMs = 4500;
+
+  if (payload.timestamp < cooldownUntil.current) {
+    return;
+  }
+
+  if (payload.timestamp - lastLogTimestamp.current < burstIntervalMs) {
     return;
   }
 
   lastLogTimestamp.current = payload.timestamp;
-  console.debug('[tuner-debug]', payload);
+  burstCount.current += 1;
+  console.log('[tuner-debug]', payload);
+
+  if (burstCount.current >= maxBurstLogs) {
+    burstCount.current = 0;
+    cooldownUntil.current = payload.timestamp + cooldownMs;
+  }
 }
 
 function getAdaptiveSmoothing(confidence: number) {
