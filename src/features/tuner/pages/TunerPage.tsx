@@ -35,8 +35,12 @@ export function TunerPage() {
           setInstallSheetOpen(true);
         }}
         onLocaleChange={setLocale}
+        onStringTypeChange={tuner.setStringType}
         profileNames={t.profiles}
         showInstall={pwaInstall.canInstall}
+        stringTypeId={tuner.stringTypeId}
+        stringTypeLabel={t.labels.stringType}
+        stringTypeNames={t.stringTypes}
       />
 
       <section className="display-stage">

@@ -358,6 +358,10 @@ button {
   grid-template-columns: repeat(3, 1fr);
 }
 
+.toolbar-group--strings .toolbar-toggle--dual {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .toolbar-label {
   color: var(--text-muted);
   font-size: 0.68rem;

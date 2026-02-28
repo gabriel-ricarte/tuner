@@ -27,10 +27,11 @@ import {
   STRING_SWITCH_FRAME_THRESHOLD
 } from '@/shared/constants/audio';
 import {
+  DEFAULT_STRING_TYPE_ID,
   DEFAULT_TARGET_STRING_ID,
   GUITAR_STRING_MAP,
-  THIN_GUITAR_STRING_IDS,
-  THIN_STRING_DETECTION_WINDOWS
+  HIGH_GUITAR_STRING_IDS,
+  HIGH_STRING_DETECTION_WINDOWS
 } from '@/shared/constants/tuner';
 import { translations } from '@/lib/i18n/translations';
 import type { Locale } from '@/shared/types/i18n';
@@ -38,6 +39,7 @@ import type { CaptureProfileId } from '@/shared/types/audio';
 import type {
   DetectedNote,
   GuitarStringId,
+  StringTypeId,
   TunerHookResult,
   TunerMode,
   TunerSnapshot,
@@ -46,6 +48,7 @@ import type {
 
 type TunerErrorKey =
   | 'microphoneUnavailable'
+  | 'insecureContext'
   | 'browserUnsupported'
   | 'permissionDenied'
   | 'microphoneNotFound'
@@ -78,11 +81,13 @@ export function useTuner(locale: Locale): TunerHookResult {
   const initialMode = preferences.mode ?? 'auto';
   const initialStringId = preferences.targetStringId ?? DEFAULT_TARGET_STRING_ID;
   const initialCaptureProfileId = preferences.captureProfileId ?? DEFAULT_CAPTURE_PROFILE_ID;
+  const initialStringTypeId = preferences.stringTypeId ?? DEFAULT_STRING_TYPE_ID;
   const [status, setStatus] = useState<TunerStatus>('idle');
   const [mode, setMode] = useState<TunerMode>(initialMode);
   const [manualStringId, setManualStringId] = useState<GuitarStringId>(initialStringId);
   const [captureProfileId, setCaptureProfileId] =
     useState<CaptureProfileId>(initialCaptureProfileId);
+  const [stringTypeId, setStringTypeId] = useState<StringTypeId>(initialStringTypeId);
   const [snapshot, setSnapshot] = useState<TunerSnapshot>(
     buildInitialSnapshot(initialStringId),
   );
@@ -107,8 +112,9 @@ export function useTuner(locale: Locale): TunerHookResult {
       mode,
       targetStringId: manualStringId,
       captureProfileId,
+      stringTypeId,
     });
-  }, [captureProfileId, manualStringId, mode]);
+  }, [captureProfileId, manualStringId, mode, stringTypeId]);
 
   useEffect(() => {
     consecutiveGoodFrames.current = 0;
@@ -188,6 +194,7 @@ export function useTuner(locale: Locale): TunerHookResult {
     const detectionHints = resolveDetectionHints(
       mode,
       manualStringId,
+      stringTypeId,
       smoothedFrequency.current,
       lastValidSnapshot.current.targetString?.id ?? null,
     );
@@ -374,6 +381,7 @@ export function useTuner(locale: Locale): TunerHookResult {
     status,
     mode,
     captureProfileId,
+    stringTypeId,
     frequency: snapshot.frequency,
     note: snapshot.note,
     cents: snapshot.cents,
@@ -385,6 +393,7 @@ export function useTuner(locale: Locale): TunerHookResult {
     start,
     stop,
     setCaptureProfile: setCaptureProfileId,
+    setStringType: setStringTypeId,
     setTargetString,
     setMode
   };
@@ -471,6 +480,13 @@ function getStableAutoString(
 }
 
 function getMicrophoneErrorKey(caughtError: unknown): Exclude<TunerErrorKey, null> {
+  if (
+    caughtError instanceof Error &&
+    caughtError.message === 'Microphone access requires HTTPS or localhost.'
+  ) {
+    return 'insecureContext';
+  }
+
   if (!navigator.mediaDevices?.getUserMedia) {
     return 'browserUnsupported';
   }
@@ -530,6 +546,7 @@ function retainSmoothedFrequency(
 function resolveDetectionHints(
   mode: TunerMode,
   manualStringId: GuitarStringId,
+  stringTypeId: StringTypeId,
   smoothedFrequency: number | null,
   lastTargetStringId: GuitarStringId | null,
 ) {
@@ -540,7 +557,7 @@ function resolveDetectionHints(
     lastTargetStringId,
   );
 
-  if (referenceStringId === null || !THIN_GUITAR_STRING_IDS.includes(referenceStringId)) {
+  if (referenceStringId === null || !HIGH_GUITAR_STRING_IDS.includes(referenceStringId)) {
     return {
       minFrequency: undefined,
       maxFrequency: undefined,
@@ -551,7 +568,7 @@ function resolveDetectionHints(
     };
   }
 
-  const window = THIN_STRING_DETECTION_WINDOWS[referenceStringId];
+  const window = HIGH_STRING_DETECTION_WINDOWS[stringTypeId][referenceStringId];
   const targetString = GUITAR_STRING_MAP[referenceStringId];
 
   return {

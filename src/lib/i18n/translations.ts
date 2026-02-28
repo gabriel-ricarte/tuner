@@ -16,6 +16,7 @@ type TranslationDictionary = {
     cents: string;
     language: string;
     captureProfile: string;
+    stringType: string;
     install: string;
     tuningMode: string;
     targetString: string;
@@ -44,8 +45,13 @@ type TranslationDictionary = {
     close: string;
   };
   profiles: Record<CaptureProfileId, string>;
+  stringTypes: {
+    steel: string;
+    nylon: string;
+  };
   errors: {
     microphoneUnavailable: string;
+    insecureContext: string;
     browserUnsupported: string;
     permissionDenied: string;
     microphoneNotFound: string;
@@ -71,6 +77,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
       cents: 'cents',
       language: 'Language',
       captureProfile: 'Capture',
+      stringType: 'Strings',
       install: 'Install',
       tuningMode: 'Tuning mode',
       targetString: 'Target string',
@@ -103,8 +110,13 @@ export const translations: Record<Locale, TranslationDictionary> = {
       balanceado: 'Balanced',
       estrito: 'Strict',
     },
+    stringTypes: {
+      steel: 'Steel',
+      nylon: 'Nylon',
+    },
     errors: {
       microphoneUnavailable: 'Microphone input is unavailable.',
+      insecureContext: 'Microphone access requires HTTPS or localhost.',
       browserUnsupported: 'This browser does not support microphone capture.',
       permissionDenied: 'Microphone permission was denied. Allow access in the browser and try again.',
       microphoneNotFound: 'No microphone was found on this device.',
@@ -129,6 +141,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
       cents: 'cent',
       language: 'Idioma',
       captureProfile: 'Captacao',
+      stringType: 'Cordas',
       install: 'Instalar',
       tuningMode: 'Modo de afinacao',
       targetString: 'Corda alvo',
@@ -161,8 +174,13 @@ export const translations: Record<Locale, TranslationDictionary> = {
       balanceado: 'Balanceado',
       estrito: 'Estrito',
     },
+    stringTypes: {
+      steel: 'Aco',
+      nylon: 'Nylon',
+    },
     errors: {
       microphoneUnavailable: 'A entrada do microfone nao esta disponivel.',
+      insecureContext: 'O microfone exige HTTPS ou localhost.',
       browserUnsupported: 'Este navegador nao oferece suporte ao microfone.',
       permissionDenied:
         'Permissao do microfone negada. Libere o acesso no navegador e tente novamente.',
@@ -188,6 +206,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
       cents: 'cent',
       language: 'Idioma',
       captureProfile: 'Captacion',
+      stringType: 'Cuerdas',
       install: 'Instalar',
       tuningMode: 'Modo de afinacion',
       targetString: 'Cuerda objetivo',
@@ -220,8 +239,13 @@ export const translations: Record<Locale, TranslationDictionary> = {
       balanceado: 'Balanceado',
       estrito: 'Estricto',
     },
+    stringTypes: {
+      steel: 'Acero',
+      nylon: 'Nylon',
+    },
     errors: {
       microphoneUnavailable: 'La entrada del microfono no esta disponible.',
+      insecureContext: 'El microfono requiere HTTPS o localhost.',
       browserUnsupported: 'Este navegador no admite captura de microfono.',
       permissionDenied:
         'El permiso del microfono fue denegado. Habilitalo en el navegador e intenta de nuevo.',

@@ -32,27 +32,34 @@ export function createMicrophoneController(options: MicrophoneControllerOptions)
 
   const start = async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
-      throw new Error('Este navegador nao oferece suporte ao microfone.');
+      throw new Error('Microphone capture is not supported in this browser.');
+    }
+
+    if (!window.isSecureContext) {
+      throw new Error('Microphone access requires HTTPS or localhost.');
     }
 
     const audioContext = getAudioContext();
 
-    if (audioContext.state === 'suspended') {
-      await audioContext.resume();
-    }
-
     if (stream) {
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
       return;
     }
 
+    const permissionStream = await requestPermissionStream();
+
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: preferredConstraints,
-      });
+      stream = await requestPreferredStream(preferredConstraints, permissionStream);
       session.usedFallback = false;
     } catch {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = permissionStream;
       session.usedFallback = true;
+    }
+
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume();
     }
 
     source = audioContext.createMediaStreamSource(stream);
@@ -96,6 +103,44 @@ export function createMicrophoneController(options: MicrophoneControllerOptions)
   return {
     start,
     stop,
-    read
+    read,
   };
+}
+
+async function requestPermissionStream() {
+  return navigator.mediaDevices.getUserMedia({ audio: true });
+}
+
+async function requestPreferredStream(
+  preferredConstraints: MediaTrackConstraints,
+  permissionStream: MediaStream,
+) {
+  const [track] = permissionStream.getAudioTracks();
+
+  if (track?.applyConstraints) {
+    try {
+      await track.applyConstraints(preferredConstraints);
+      return permissionStream;
+    } catch {
+      // Fall through to a fresh request if applying constraints is ignored or rejected.
+    }
+  }
+
+  try {
+    const preferredStream = await navigator.mediaDevices.getUserMedia({
+      audio: preferredConstraints,
+    });
+    stopStream(permissionStream);
+    return preferredStream;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'OverconstrainedError') {
+      return permissionStream;
+    }
+
+    throw error;
+  }
+}
+
+function stopStream(stream: MediaStream) {
+  stream.getTracks().forEach((track) => track.stop());
 }

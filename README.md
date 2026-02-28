@@ -2,75 +2,117 @@
 
 Mobile-first guitar tuner built with React, TypeScript, and Vite.
 
-I made this project public to showcase my frontend engineering skills and my ability to design and build a real app experience end to end: audio capture, pitch detection, PWA behavior, mobile UI, install flow, and product-focused iteration.
+This repository is public because I wanted to showcase how I build frontend products end to end: product thinking, UI architecture, browser APIs, PWA behavior, mobile-first design, and iterative refinement based on real usage.
 
-## Overview
+## What this project demonstrates
 
-This app is a single-screen guitar tuner focused on practical use on mobile devices. It runs fully client-side in the browser, uses the microphone through the Web Audio API, and helps tune a standard 6-string guitar in real time.
+- Building a real client-side app, not just a static interface
+- Working with the Web Audio API for microphone capture
+- Implementing pitch detection and tuning feedback in the browser
+- Designing a focused mobile-first interface around a single core task
+- Structuring a React codebase with clear module boundaries
+- Shipping an installable PWA experience
 
-Main goals for this project:
+## Product overview
 
-- Build a functional tuner MVP without a backend
-- Create a mobile-first interface that feels like an installable app
-- Keep the architecture clean and modular
-- Improve real-world behavior through iterative tuning of capture, smoothing, retention, and UI feedback
+`Tuner` is a one-screen guitar tuner focused on practical mobile usage.
 
-## Features
+It runs fully in the browser, with no backend, and helps tune a standard 6-string guitar in real time.
 
-- Real-time pitch detection using microphone input
-- Standard tuning support: `E2 A2 D3 G3 B3 E4`
-- Auto string detection
+Core capabilities:
+
+- Real-time microphone capture
+- Pitch detection with autocorrelation
+- Auto string targeting
 - Manual string targeting
-- Frequency, note, cents offset, and tuning gauge
-- Capture profiles for different microphone conditions
-- i18n support: Portuguese, English, Spanish
-- Install flow for PWA
-- Fully client-side, no backend
+- Frequency, note, cents, and gauge feedback
+- Capture profiles for different device and microphone conditions
+- PWA install flow
+- i18n support in Portuguese, English, and Spanish
 
-## Tech Stack
+## Tech stack
 
 - React
 - TypeScript
 - Vite
 - Web Audio API
-- PWA manifest + service worker
+- Service Worker
+- Web App Manifest
+
+## Why I made this public
+
+I use this repository as a portfolio project to demonstrate:
+
+- frontend engineering quality
+- app architecture decisions
+- UX iteration for a real use case
+- browser platform integration
+- shipping discipline from prototype to deployable app
 
 ## Architecture
 
-The project is organized by responsibility to keep audio, pitch logic, music domain rules, storage, and UI separated.
+The project is intentionally split by responsibility so the app remains easy to maintain as it evolves.
 
-### Core areas
+### Audio
 
-- `src/lib/audio`
-  Handles microphone session setup, fallback constraints, frame preparation, and capture profiles
-- `src/lib/pitch`
-  Contains the autocorrelation-based pitch detection logic
-- `src/lib/music`
-  Converts frequency into note, cents, and nearest guitar string
-- `src/lib/storage`
-  Persists user preferences and PWA install dismissal state
-- `src/features/tuner/hooks`
-  Coordinates tuner state and UI-facing behavior
-- `src/features/tuner/components`
-  Focused UI components for the tuner screen
+- `src/lib/audio/audioContext.ts`
+- `src/lib/audio/microphone.ts`
+- `src/lib/audio/frameAnalysis.ts`
+- `src/lib/audio/captureProfiles.ts`
 
-## Why this project matters
+Responsible for microphone access, fallback constraints, frame preparation, and capture profile definitions.
 
-This is not just a static UI exercise.
+### Pitch
 
-I used it to demonstrate:
+- `src/lib/pitch/autocorrelate.ts`
 
-- Product thinking for mobile UX
-- Frontend architecture decisions in a real interactive app
-- Browser audio API integration
-- State orchestration for real-time feedback
-- PWA install flow design for Android and iPhone
-- Iterative tuning of heuristics based on actual usage
+Contains the pitch detection logic and related confidence heuristics.
 
-## Running locally
+### Music domain
+
+- `src/lib/music/notes.ts`
+- `src/shared/constants/tuner.ts`
+
+Handles note conversion, cents calculation, and guitar string targeting.
+
+### Storage and preferences
+
+- `src/lib/storage/tunerPreferences.ts`
+- `src/lib/storage/locale.ts`
+- `src/lib/storage/pwaInstall.ts`
+
+Persists tuner preferences, locale, and install-flow dismissal state.
+
+### Tuner feature
+
+- `src/features/tuner/hooks/useTuner.ts`
+- `src/features/tuner/hooks/usePwaInstall.ts`
+- `src/features/tuner/components/*`
+- `src/features/tuner/pages/TunerPage.tsx`
+
+Coordinates the tuner state, install flow, and the single-screen UI.
+
+## UX goals
+
+This app was designed around a few specific product goals:
+
+- one-screen experience
+- fast reading on mobile
+- minimal visual noise
+- useful tuning feedback rather than overcomplicated DSP UI
+- installable app feel
+
+## Local development
+
+Install dependencies:
 
 ```bash
 npm install
+```
+
+Start the dev server:
+
+```bash
 npm run dev
 ```
 
@@ -82,20 +124,35 @@ npm run build
 
 ## Deployment
 
-The project is configured for Vercel with:
+This project is configured for Vercel.
 
-- `framework: vite`
-- `buildCommand: npm run build`
-- `outputDirectory: dist`
+Current deployment config:
 
-## Notes
+- framework: `vite`
+- build command: `npm run build`
+- output directory: `dist`
 
-- Best results come from HTTPS and explicit microphone permission
-- PWA install behavior depends on browser support
-- Pitch detection is based on a lightweight autocorrelation approach, tuned for practical real-world use rather than DSP complexity
+## PWA notes
+
+- The app includes a manifest and service worker
+- Install behavior depends on browser support
+- Android/Chromium can use the native install prompt when available
+- iPhone uses a guided Add to Home Screen flow
+
+## Microphone notes
+
+- Best results require HTTPS in production
+- Microphone behavior can vary across browsers and devices
+- Pitch detection is intentionally lightweight and practical rather than algorithmically heavy
+
+## Suggested repository description
+
+If you want a short GitHub repository subtitle, I recommend:
+
+`Mobile-first guitar tuner PWA built with React, TypeScript, Vite, and the Web Audio API.`
 
 ## Author
 
 Gabriel Ricarte
 
-This repository is public as part of my portfolio and to highlight my frontend and app-building skills.
+Public portfolio project focused on frontend engineering and app-building skills.

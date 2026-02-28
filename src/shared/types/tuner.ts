@@ -9,6 +9,7 @@ export type TunerStatus =
   | 'error';
 
 export type TunerMode = 'auto' | 'manual';
+export type StringTypeId = 'steel' | 'nylon';
 
 export type GuitarStringId = 'E2' | 'A2' | 'D3' | 'G3' | 'B3' | 'E4';
 
@@ -39,12 +40,14 @@ export type TunerPreferences = {
   mode: TunerMode;
   targetStringId: GuitarStringId;
   captureProfileId: CaptureProfileId;
+  stringTypeId: StringTypeId;
 };
 
 export type TunerHookResult = {
   status: TunerStatus;
   mode: TunerMode;
   captureProfileId: CaptureProfileId;
+  stringTypeId: StringTypeId;
   frequency: number | null;
   note: DetectedNote | null;
   cents: number | null;
@@ -56,6 +59,7 @@ export type TunerHookResult = {
   start: () => Promise<void>;
   stop: () => void;
   setCaptureProfile: (profileId: CaptureProfileId) => void;
+  setStringType: (stringTypeId: StringTypeId) => void;
   setTargetString: (value: GuitarStringId | null) => void;
   setMode: (mode: TunerMode) => void;
 };
