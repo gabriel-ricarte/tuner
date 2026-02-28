@@ -955,9 +955,7 @@ function resolveRefinementHints(
   const referenceStringId =
     mode === 'manual'
       ? manualStringId
-      : detectedFrequency === null
-        ? null
-        : getNearestGuitarString(detectedFrequency).id;
+      : resolveAutoReferenceStringId(detectedFrequency, stringTypeId);
 
   if (referenceStringId === null || !HIGH_GUITAR_STRING_IDS.includes(referenceStringId)) {
     return null;
@@ -978,4 +976,42 @@ function resolveRefinementHints(
     expectedToleranceRatio: window.expectedToleranceRatio,
     expectedBonus: window.expectedBonus,
   };
+}
+
+function resolveAutoReferenceStringId(
+  detectedFrequency: number | null,
+  stringTypeId: StringTypeId,
+) {
+  if (detectedFrequency === null) {
+    return null;
+  }
+
+  const nearestStringId = getNearestGuitarString(detectedFrequency).id;
+
+  if (HIGH_GUITAR_STRING_IDS.includes(nearestStringId)) {
+    return nearestStringId;
+  }
+
+  const harmonicMultipliers = [2, 3, 4] as const;
+
+  for (const stringId of HIGH_GUITAR_STRING_IDS) {
+    const window = HIGH_STRING_DETECTION_WINDOWS[stringTypeId][stringId];
+    const targetString = GUITAR_STRING_MAP[stringId];
+
+    if (window === undefined) {
+      continue;
+    }
+
+    for (const multiplier of harmonicMultipliers) {
+      const projectedFrequency = detectedFrequency * multiplier;
+      const distanceRatio =
+        Math.abs(projectedFrequency - targetString.frequency) / targetString.frequency;
+
+      if (distanceRatio <= window.activationToleranceRatio) {
+        return stringId;
+      }
+    }
+  }
+
+  return nearestStringId;
 }

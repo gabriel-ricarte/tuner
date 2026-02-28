@@ -3,7 +3,7 @@ import type { CaptureProfileConfig, CaptureProfileId } from '@/shared/types/audi
 export const CAPTURE_PROFILES: Record<CaptureProfileId, CaptureProfileConfig> = {
   sensivel: {
     id: 'sensivel',
-    entryRms: 0.018,
+    entryRms: 0.016,
     holdRms: 0.012,
     clippingThreshold: 0.99,
     minGoodFrames: 2,
@@ -12,7 +12,7 @@ export const CAPTURE_PROFILES: Record<CaptureProfileId, CaptureProfileConfig> = 
   },
   balanceado: {
     id: 'balanceado',
-    entryRms: 0.022,
+    entryRms: 0.018,
     holdRms: 0.014,
     clippingThreshold: 0.985,
     minGoodFrames: 3,
@@ -21,7 +21,7 @@ export const CAPTURE_PROFILES: Record<CaptureProfileId, CaptureProfileConfig> = 
   },
   estrito: {
     id: 'estrito',
-    entryRms: 0.026,
+    entryRms: 0.02,
     holdRms: 0.016,
     clippingThreshold: 0.975,
     minGoodFrames: 4,
