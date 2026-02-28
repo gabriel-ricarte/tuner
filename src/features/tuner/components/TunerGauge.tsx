@@ -23,6 +23,7 @@ export function TunerGauge({ cents, state, text }: TunerGaugeProps) {
   const percent = ((visualCents + MAX_CENTS) / (MAX_CENTS * 2)) * 100;
   const centered = cents !== null && Math.abs(cents) <= 4;
   const directionLabel = centered ? text.centered : visualCents < 0 ? text.low : text.high;
+  const zoneClass = centered ? 'is-centered' : visualCents < 0 ? 'is-low' : 'is-high';
 
   useEffect(() => {
     const animate = () => {
@@ -45,7 +46,7 @@ export function TunerGauge({ cents, state, text }: TunerGaugeProps) {
 
 
   return (
-    <section className={`gauge-card gauge-card--${state}`} aria-label={text.tuningOffset}>
+    <section className={`gauge-card gauge-card--${state} ${zoneClass}`} aria-label={text.tuningOffset}>
       <div className="gauge-scale">
         <span>-50</span>
         <span>0</span>
@@ -53,6 +54,7 @@ export function TunerGauge({ cents, state, text }: TunerGaugeProps) {
       </div>
       <div className="gauge-track">
         <div className="gauge-center-ring" />
+        <div className="gauge-center-glow" />
         <div className={`gauge-center ${centered ? 'is-centered' : ''}`} />
         <div className="gauge-needle" style={{ left: `${percent}%` }} />
       </div>

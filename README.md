@@ -145,6 +145,26 @@ Current deployment config:
 - Microphone behavior can vary across browsers and devices
 - Pitch detection is intentionally lightweight and practical rather than algorithmically heavy
 
+## Internal Debug Tooling
+
+During device calibration and pitch-detector refinement, I added internal debug tooling to inspect:
+
+- frame rejection reasons
+- RMS thresholds
+- broad vs refined detection
+- stable vs classic detector behavior
+- live console telemetry for real-device tuning sessions
+
+That debug tooling is intentionally kept in the codebase for future tuning work, but it is hidden from the main UI so the production experience stays clean.
+
+Relevant internal pieces still present in the project:
+
+- `src/features/tuner/components/TunerDebugPanel.tsx`
+- `src/features/tuner/components/PitchAlgorithmSelector.tsx`
+- `src/features/tuner/hooks/useTuner.ts`
+
+This makes it easier to re-enable diagnostics later without rebuilding the instrumentation from scratch.
+
 ## Suggested repository description
 
 If you want a short GitHub repository subtitle, I recommend:
