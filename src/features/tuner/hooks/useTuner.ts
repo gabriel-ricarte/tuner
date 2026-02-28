@@ -42,6 +42,7 @@ import type {
   DetectedNote,
   GuitarStringId,
   StringTypeId,
+  TunerDebugState,
   TunerHookResult,
   TunerMode,
   TunerSnapshot,
@@ -78,6 +79,59 @@ function buildInitialSnapshot(manualStringId: GuitarStringId): TunerSnapshot {
   };
 }
 
+function buildInitialDebugState(
+  captureProfileId: CaptureProfileId,
+  stringTypeId: StringTypeId,
+  pitchDetectorId: PitchDetectorId,
+  mode: TunerMode,
+  manualStringId: GuitarStringId,
+): TunerDebugState {
+  return {
+    detectorId: pitchDetectorId,
+    captureProfileId,
+    stringTypeId,
+    mode,
+    manualStringId,
+    referenceStringId: null,
+    stage: 'idle',
+    rejectionReason: null,
+    sampleRate: null,
+    sessionFallback: false,
+    signalLevel: 0,
+    peak: 0,
+    dcOffset: 0,
+    clipping: false,
+    minimumSignalLevel: 0,
+    hasRecentReading: false,
+    hasLogicalRetention: false,
+    weakSignalFrames: 0,
+    consecutiveGoodFrames: 0,
+    consecutiveBadFrames: 0,
+    smoothingFrequency: null,
+    visualFrequency: null,
+    noteLabel: null,
+    broadFrequency: null,
+    broadConfidence: 0,
+    refinedFrequency: null,
+    refinedConfidence: 0,
+    selectedFrequency: null,
+    selectedConfidence: 0,
+    refinementMinFrequency: null,
+    refinementMaxFrequency: null,
+    detectorComparison: {
+      'autocorrelate-stable': {
+        frequency: null,
+        confidence: 0,
+      },
+      'autocorrelate-classic': {
+        frequency: null,
+        confidence: 0,
+      },
+    },
+    events: [],
+  };
+}
+
 export function useTuner(locale: Locale): TunerHookResult {
   const preferences = loadTunerPreferences();
   const initialMode = preferences.mode ?? 'auto';
@@ -96,6 +150,15 @@ export function useTuner(locale: Locale): TunerHookResult {
   const [snapshot, setSnapshot] = useState<TunerSnapshot>(
     buildInitialSnapshot(initialStringId),
   );
+  const [debug, setDebug] = useState<TunerDebugState>(
+    buildInitialDebugState(
+      initialCaptureProfileId,
+      initialStringTypeId,
+      initialPitchDetectorId,
+      initialMode,
+      initialStringId,
+    ),
+  );
   const [errorKey, setErrorKey] = useState<TunerErrorKey>(null);
   const animationFrameId = useRef<number | null>(null);
   const smoothedFrequency = useRef<number | null>(null);
@@ -110,6 +173,8 @@ export function useTuner(locale: Locale): TunerHookResult {
   const lastValidTimestamp = useRef<number | null>(null);
   const consecutiveGoodFrames = useRef(0);
   const consecutiveBadFrames = useRef(0);
+  const debugSignature = useRef<string>('idle');
+  const debugLogTimestamp = useRef(0);
   const captureProfile = CAPTURE_PROFILES[captureProfileId];
 
   useEffect(() => {
@@ -126,7 +191,23 @@ export function useTuner(locale: Locale): TunerHookResult {
     consecutiveGoodFrames.current = 0;
     consecutiveBadFrames.current = 0;
     weakSignalFrames.current = 0;
-  }, [captureProfileId]);
+    pendingNoteLabel.current = null;
+    pendingNoteFrames.current = 0;
+    pendingAutoStringId.current = null;
+    pendingAutoStringFrames.current = 0;
+    lockedNote.current = null;
+    lockedAutoStringId.current = null;
+    smoothedFrequency.current = lastValidSnapshot.current.frequency;
+    setDebug(
+      buildInitialDebugState(
+        captureProfileId,
+        stringTypeId,
+        pitchDetectorId,
+        mode,
+        manualStringId,
+      ),
+    );
+  }, [captureProfileId, manualStringId, mode, pitchDetectorId, stringTypeId]);
 
   useEffect(() => {
     setSnapshot((current) => ({
@@ -164,7 +245,11 @@ export function useTuner(locale: Locale): TunerHookResult {
     lastValidSnapshot.current = buildInitialSnapshot(manualStringId);
     consecutiveGoodFrames.current = 0;
     consecutiveBadFrames.current = 0;
+    debugSignature.current = 'idle';
     setStatus('idle');
+    setDebug(
+      buildInitialDebugState(captureProfileId, stringTypeId, pitchDetectorId, mode, manualStringId),
+    );
     setSnapshot((current) => ({
       ...current,
       frequency: null,
@@ -192,20 +277,102 @@ export function useTuner(locale: Locale): TunerHookResult {
     const hasLogicalRetention =
       lastValidTimestamp.current !== null &&
       now - lastValidTimestamp.current <= SMOOTHED_FREQUENCY_RELEASE_MS;
+    const referenceStringId =
+      mode === 'manual'
+        ? manualStringId
+        : lastValidSnapshot.current.targetString?.id ?? null;
     const minimumSignalLevel = hasRecentReading
       ? captureProfile.holdRms
       : captureProfile.entryRms;
     const preparedFrame = prepareAudioFrame(analysis.buffer, captureProfile);
     const signalLevel = preparedFrame.quality.rms;
+    const nextDebugBase = {
+      detectorId: pitchDetectorId,
+      captureProfileId,
+      stringTypeId,
+      sampleRate: analysis.sampleRate,
+      sessionFallback: analysis.session.usedFallback,
+      mode,
+      manualStringId,
+      referenceStringId,
+      signalLevel,
+      peak: preparedFrame.quality.peak,
+      dcOffset: preparedFrame.quality.dcOffset,
+      clipping: preparedFrame.quality.hasClipping,
+      minimumSignalLevel,
+      hasRecentReading,
+      hasLogicalRetention,
+      weakSignalFrames: weakSignalFrames.current,
+      consecutiveGoodFrames: consecutiveGoodFrames.current,
+      consecutiveBadFrames: consecutiveBadFrames.current,
+      smoothingFrequency: smoothedFrequency.current,
+      visualFrequency: lastValidSnapshot.current.frequency,
+      noteLabel: lastValidSnapshot.current.note?.label ?? null,
+    };
     if (
       signalLevel < minimumSignalLevel ||
       preparedFrame.quality.hasClipping ||
       !preparedFrame.quality.hasMinimumSignal
     ) {
+      const rejectionReason =
+        signalLevel < minimumSignalLevel
+          ? 'weak-signal'
+          : preparedFrame.quality.hasClipping
+            ? 'clipping'
+            : 'minimum-signal';
       weakSignalFrames.current += 1;
       consecutiveBadFrames.current += 1;
       consecutiveGoodFrames.current = 0;
       retainSmoothedFrequency(smoothedFrequency, lastValidSnapshot.current.frequency);
+      setDebug((current) =>
+        withDebugEvent(
+          {
+            ...current,
+            ...nextDebugBase,
+            stage: hasRecentReading || hasLogicalRetention ? 'holding' : 'frame-rejected',
+            rejectionReason,
+            weakSignalFrames: weakSignalFrames.current,
+            consecutiveGoodFrames: consecutiveGoodFrames.current,
+            consecutiveBadFrames: consecutiveBadFrames.current,
+            smoothingFrequency: smoothedFrequency.current,
+            visualFrequency: lastValidSnapshot.current.frequency,
+            broadFrequency: null,
+            broadConfidence: 0,
+            refinedFrequency: null,
+            refinedConfidence: 0,
+            selectedFrequency: null,
+            selectedConfidence: 0,
+            refinementMinFrequency: null,
+            refinementMaxFrequency: null,
+            detectorComparison: {
+              'autocorrelate-stable': { frequency: null, confidence: 0 },
+              'autocorrelate-classic': { frequency: null, confidence: 0 },
+            },
+          },
+          debugSignature,
+          {
+            timestamp: now,
+            stage: hasRecentReading || hasLogicalRetention ? 'holding' : 'frame-rejected',
+            reason: rejectionReason,
+            detail: `signal=${signalLevel.toFixed(4)} min=${minimumSignalLevel.toFixed(4)}`,
+          },
+        ),
+      );
+      logDebugFrame({
+        detectorId: pitchDetectorId,
+        mode,
+        manualStringId,
+        targetStringId: referenceStringId ?? manualStringId,
+        signalLevel,
+        minimumSignalLevel,
+        selectedFrequency: null,
+        selectedConfidence: 0,
+        broadStableFrequency: null,
+        broadClassicFrequency: null,
+        stage: hasRecentReading || hasLogicalRetention ? 'holding' : 'frame-rejected',
+        rejectionReason,
+        timestamp: now,
+      }, debugLogTimestamp);
 
       if (
         weakSignalFrames.current >= NO_SIGNAL_FRAME_LIMIT ||
@@ -242,8 +409,7 @@ export function useTuner(locale: Locale): TunerHookResult {
     }
 
     weakSignalFrames.current = 0;
-
-    const broadDetection = detectPitch({
+    const broadInput = {
       buffer: preparedFrame.buffer,
       sampleRate: analysis.sampleRate,
       options: {
@@ -251,7 +417,13 @@ export function useTuner(locale: Locale): TunerHookResult {
         frameQuality: preparedFrame.quality,
         previousFrequency: lastValidSnapshot.current.frequency,
       },
-    }, pitchDetectorId);
+    };
+    const stableBroadDetection = detectPitch(broadInput, 'autocorrelate-stable');
+    const classicBroadDetection = detectPitch(broadInput, 'autocorrelate-classic');
+    const broadDetection =
+      pitchDetectorId === 'autocorrelate-classic'
+        ? classicBroadDetection
+        : stableBroadDetection;
     const refinementHints = resolveRefinementHints(
       mode,
       manualStringId,
@@ -277,6 +449,28 @@ export function useTuner(locale: Locale): TunerHookResult {
           }, pitchDetectorId)
         : null;
     const detection = refinedDetection ?? broadDetection;
+    setDebug((current) => ({
+      ...current,
+      ...nextDebugBase,
+      broadFrequency: broadDetection?.frequency ?? null,
+      broadConfidence: broadDetection?.confidence ?? 0,
+      refinedFrequency: refinedDetection?.frequency ?? null,
+      refinedConfidence: refinedDetection?.confidence ?? 0,
+      selectedFrequency: detection?.frequency ?? null,
+      selectedConfidence: detection?.confidence ?? 0,
+      refinementMinFrequency: refinementHints?.minFrequency ?? null,
+      refinementMaxFrequency: refinementHints?.maxFrequency ?? null,
+      detectorComparison: {
+        'autocorrelate-stable': {
+          frequency: stableBroadDetection?.frequency ?? null,
+          confidence: stableBroadDetection?.confidence ?? 0,
+        },
+        'autocorrelate-classic': {
+          frequency: classicBroadDetection?.frequency ?? null,
+          confidence: classicBroadDetection?.confidence ?? 0,
+        },
+      },
+    }));
     const minimumConfidence = hasRecentReading
       ? HOLD_DETECTION_CONFIDENCE
       : MIN_DETECTION_CONFIDENCE;
@@ -287,9 +481,56 @@ export function useTuner(locale: Locale): TunerHookResult {
       detection.frequency < MIN_DETECTION_FREQUENCY ||
       detection.frequency > MAX_DETECTION_FREQUENCY
     ) {
+      const rejectionReason =
+        detection === null
+          ? 'no-detection'
+          : detection.confidence < minimumConfidence
+            ? 'low-confidence'
+            : 'out-of-range';
       consecutiveBadFrames.current += 1;
       consecutiveGoodFrames.current = 0;
       retainSmoothedFrequency(smoothedFrequency, lastValidSnapshot.current.frequency);
+      setDebug((current) =>
+        withDebugEvent(
+          {
+            ...current,
+            ...nextDebugBase,
+            stage: hasRecentReading || hasLogicalRetention ? 'holding' : 'detecting',
+            rejectionReason,
+            weakSignalFrames: weakSignalFrames.current,
+            consecutiveGoodFrames: consecutiveGoodFrames.current,
+            consecutiveBadFrames: consecutiveBadFrames.current,
+            smoothingFrequency: smoothedFrequency.current,
+            visualFrequency: lastValidSnapshot.current.frequency,
+            noteLabel: lastValidSnapshot.current.note?.label ?? null,
+          },
+          debugSignature,
+          {
+            timestamp: now,
+            stage: hasRecentReading || hasLogicalRetention ? 'holding' : 'detecting',
+            reason: rejectionReason,
+            detail:
+              detection === null
+                ? 'no frequency candidate'
+                : `confidence=${detection.confidence.toFixed(2)} freq=${detection.frequency.toFixed(2)}`,
+          },
+        ),
+      );
+      logDebugFrame({
+        detectorId: pitchDetectorId,
+        mode,
+        manualStringId,
+        targetStringId: referenceStringId ?? manualStringId,
+        signalLevel,
+        minimumSignalLevel,
+        selectedFrequency: detection?.frequency ?? null,
+        selectedConfidence: detection?.confidence ?? 0,
+        broadStableFrequency: stableBroadDetection?.frequency ?? null,
+        broadClassicFrequency: classicBroadDetection?.frequency ?? null,
+        stage: hasRecentReading || hasLogicalRetention ? 'holding' : 'detecting',
+        rejectionReason,
+        timestamp: now,
+      }, debugLogTimestamp);
       if (hasRecentReading) {
         setStatus('detecting');
         setSnapshot(buildHeldSnapshot(lastValidSnapshot.current, smoothedFrequency.current));
@@ -316,6 +557,43 @@ export function useTuner(locale: Locale): TunerHookResult {
     consecutiveGoodFrames.current += 1;
 
     if (!hasRecentReading && consecutiveGoodFrames.current < captureProfile.minGoodFrames) {
+      setDebug((current) =>
+        withDebugEvent(
+          {
+            ...current,
+            ...nextDebugBase,
+            stage: 'detecting',
+            rejectionReason: 'waiting-good-frames',
+            weakSignalFrames: weakSignalFrames.current,
+            consecutiveGoodFrames: consecutiveGoodFrames.current,
+            consecutiveBadFrames: consecutiveBadFrames.current,
+            smoothingFrequency: smoothedFrequency.current,
+            visualFrequency: lastValidSnapshot.current.frequency,
+          },
+          debugSignature,
+          {
+            timestamp: now,
+            stage: 'detecting',
+            reason: 'waiting-good-frames',
+            detail: `good=${consecutiveGoodFrames.current}/${captureProfile.minGoodFrames}`,
+          },
+        ),
+      );
+      logDebugFrame({
+        detectorId: pitchDetectorId,
+        mode,
+        manualStringId,
+        targetStringId: referenceStringId ?? manualStringId,
+        signalLevel,
+        minimumSignalLevel,
+        selectedFrequency: detection?.frequency ?? null,
+        selectedConfidence: detection?.confidence ?? 0,
+        broadStableFrequency: stableBroadDetection?.frequency ?? null,
+        broadClassicFrequency: classicBroadDetection?.frequency ?? null,
+        stage: 'detecting',
+        rejectionReason: 'waiting-good-frames',
+        timestamp: now,
+      }, debugLogTimestamp);
       setStatus('detecting');
       animationFrameId.current = requestAnimationFrame(updateFrame);
       return;
@@ -359,6 +637,44 @@ export function useTuner(locale: Locale): TunerHookResult {
 
     lastValidSnapshot.current = nextSnapshot;
     lastValidTimestamp.current = now;
+    setDebug((current) =>
+      withDebugEvent(
+        {
+          ...current,
+          ...nextDebugBase,
+          stage: 'accepted',
+          rejectionReason: null,
+          weakSignalFrames: weakSignalFrames.current,
+          consecutiveGoodFrames: consecutiveGoodFrames.current,
+          consecutiveBadFrames: consecutiveBadFrames.current,
+          smoothingFrequency: smoothedFrequency.current,
+          visualFrequency: nextFrequency,
+          noteLabel: note.label,
+        },
+        debugSignature,
+        {
+          timestamp: now,
+          stage: 'accepted',
+          reason: null,
+          detail: `${note.label} ${nextFrequency.toFixed(2)}Hz c=${detection.confidence.toFixed(2)}`,
+        },
+      ),
+    );
+    logDebugFrame({
+      detectorId: pitchDetectorId,
+      mode,
+      manualStringId,
+      targetStringId: targetString.id,
+      signalLevel,
+      minimumSignalLevel,
+      selectedFrequency: detection.frequency,
+      selectedConfidence: detection.confidence,
+      broadStableFrequency: stableBroadDetection?.frequency ?? null,
+      broadClassicFrequency: classicBroadDetection?.frequency ?? null,
+      stage: 'accepted',
+      rejectionReason: null,
+      timestamp: now,
+    }, debugLogTimestamp);
     setStatus('listening');
     setErrorKey(null);
     setSnapshot(nextSnapshot);
@@ -411,6 +727,7 @@ export function useTuner(locale: Locale): TunerHookResult {
     targetString: snapshot.targetString,
     signalLevel: snapshot.signalLevel,
     confidence: snapshot.confidence,
+    debug,
     error,
     start,
     stop,
@@ -420,6 +737,51 @@ export function useTuner(locale: Locale): TunerHookResult {
     setTargetString,
     setMode
   };
+}
+
+function withDebugEvent(
+  nextState: TunerDebugState,
+  debugSignature: MutableRefObject<string>,
+  event: TunerDebugState['events'][number],
+) {
+  const signature = `${event.stage}:${event.reason ?? 'ok'}:${event.detail}`;
+
+  if (debugSignature.current === signature) {
+    return nextState;
+  }
+
+  debugSignature.current = signature;
+
+  return {
+    ...nextState,
+    events: [event, ...nextState.events].slice(0, 8),
+  };
+}
+
+function logDebugFrame(
+  payload: {
+    detectorId: PitchDetectorId;
+    mode: TunerMode;
+    manualStringId: GuitarStringId;
+    targetStringId: GuitarStringId;
+    signalLevel: number;
+    minimumSignalLevel: number;
+    selectedFrequency: number | null;
+    selectedConfidence: number;
+    broadStableFrequency: number | null;
+    broadClassicFrequency: number | null;
+    stage: TunerDebugState['stage'];
+    rejectionReason: TunerDebugState['rejectionReason'];
+    timestamp: number;
+  },
+  lastLogTimestamp: MutableRefObject<number>,
+) {
+  if (payload.timestamp - lastLogTimestamp.current < 750) {
+    return;
+  }
+
+  lastLogTimestamp.current = payload.timestamp;
+  console.debug('[tuner-debug]', payload);
 }
 
 function getAdaptiveSmoothing(confidence: number) {

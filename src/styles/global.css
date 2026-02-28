@@ -348,6 +348,89 @@ button {
   gap: 0.5rem;
 }
 
+.debug-panel {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 1rem;
+  background: rgba(8, 12, 15, 0.76);
+  border: 1px solid rgba(245, 243, 234, 0.05);
+}
+
+.debug-panel__title {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.debug-panel__grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.18rem 0.55rem;
+  font-size: 0.75rem;
+}
+
+.debug-panel__grid span {
+  color: var(--text-muted);
+}
+
+.debug-panel__grid strong {
+  font-family: Consolas, "Courier New", monospace;
+  font-weight: 600;
+}
+
+.debug-panel__events {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.2rem;
+}
+
+.debug-panel__events-label {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.debug-panel__events-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.debug-panel__events-list li {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.78rem;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(245, 243, 234, 0.04);
+}
+
+.debug-panel__events-list strong,
+.debug-panel__events-list span,
+.debug-panel__events-list code {
+  font-size: 0.72rem;
+}
+
+.debug-panel__events-list strong {
+  font-family: Consolas, "Courier New", monospace;
+  font-weight: 700;
+}
+
+.debug-panel__events-list span {
+  color: var(--text-muted);
+}
+
+.debug-panel__events-list code {
+  color: #d9e7f2;
+  white-space: normal;
+}
+
 .toolbar-group {
   display: grid;
   gap: 0.16rem;

@@ -3,6 +3,7 @@ import { useI18n } from '@/lib/i18n/useI18n';
 import { TopToolbar } from '@/components/TopToolbar';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { TunerStatusPill } from '@/components/TunerStatusPill';
+import { TunerDebugPanel } from '@/features/tuner/components/TunerDebugPanel';
 import { StringSelector } from '@/features/tuner/components/StringSelector';
 import { TunerDisplay } from '@/features/tuner/components/TunerDisplay';
 import { usePwaInstall } from '@/features/tuner/hooks/usePwaInstall';
@@ -94,6 +95,8 @@ export function TunerPage() {
         <TunerStatusPill tone={status.tone}>{status.label}</TunerStatusPill>
         {tuner.error ? <p className="error-banner">{tuner.error}</p> : null}
       </section>
+
+      <TunerDebugPanel debug={tuner.debug} text={t.debug} />
 
       <InstallPwaSheet
         availability={pwaInstall.availability}

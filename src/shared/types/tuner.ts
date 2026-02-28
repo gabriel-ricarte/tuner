@@ -37,6 +37,61 @@ export type TunerSnapshot = {
   confidence: number;
 };
 
+export type TunerDebugState = {
+  detectorId: PitchDetectorId;
+  captureProfileId: CaptureProfileId;
+  stringTypeId: StringTypeId;
+  mode: TunerMode;
+  manualStringId: GuitarStringId;
+  referenceStringId: GuitarStringId | null;
+  stage: 'idle' | 'frame-rejected' | 'detecting' | 'accepted' | 'holding';
+  rejectionReason:
+    | 'weak-signal'
+    | 'clipping'
+    | 'minimum-signal'
+    | 'no-detection'
+    | 'low-confidence'
+    | 'out-of-range'
+    | 'waiting-good-frames'
+    | null;
+  sampleRate: number | null;
+  sessionFallback: boolean;
+  signalLevel: number;
+  peak: number;
+  dcOffset: number;
+  clipping: boolean;
+  minimumSignalLevel: number;
+  hasRecentReading: boolean;
+  hasLogicalRetention: boolean;
+  weakSignalFrames: number;
+  consecutiveGoodFrames: number;
+  consecutiveBadFrames: number;
+  smoothingFrequency: number | null;
+  visualFrequency: number | null;
+  noteLabel: string | null;
+  broadFrequency: number | null;
+  broadConfidence: number;
+  refinedFrequency: number | null;
+  refinedConfidence: number;
+  selectedFrequency: number | null;
+  selectedConfidence: number;
+  refinementMinFrequency: number | null;
+  refinementMaxFrequency: number | null;
+  detectorComparison: Record<
+    PitchDetectorId,
+    {
+      frequency: number | null;
+      confidence: number;
+    }
+  >;
+  events: Array<{
+    timestamp: number;
+    stage: TunerDebugState['stage'];
+    reason: TunerDebugState['rejectionReason'];
+    detail: string;
+  }>;
+};
+
 export type TunerPreferences = {
   mode: TunerMode;
   targetStringId: GuitarStringId;
@@ -58,6 +113,7 @@ export type TunerHookResult = {
   targetString: GuitarString | null;
   signalLevel: number;
   confidence: number;
+  debug: TunerDebugState;
   error: string | null;
   start: () => Promise<void>;
   stop: () => void;

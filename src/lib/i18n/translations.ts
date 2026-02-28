@@ -46,6 +46,33 @@ type TranslationDictionary = {
     confirm: string;
     close: string;
   };
+  debug: {
+    title: string;
+    detector: string;
+    profile: string;
+    strings: string;
+    mode: string;
+    manualString: string;
+    reference: string;
+    stage: string;
+    reason: string;
+    sampleRate: string;
+    signal: string;
+    peak: string;
+    clipping: string;
+    minimum: string;
+    retention: string;
+    counters: string;
+    smoothing: string;
+    note: string;
+    broad: string;
+    refined: string;
+    selected: string;
+    refinement: string;
+    comparison: string;
+    events: string;
+    fallback: string;
+  };
   profiles: Record<CaptureProfileId, string>;
   pitchDetectors: Record<PitchDetectorId, string>;
   stringTypes: {
@@ -108,6 +135,33 @@ export const translations: Record<Locale, TranslationDictionary> = {
       iosStepAdd: 'Tap Add to Home Screen.',
       confirm: 'Install',
       close: 'Close',
+    },
+    debug: {
+      title: 'Debug',
+      detector: 'Detector',
+      profile: 'Profile',
+      strings: 'Strings',
+      mode: 'Mode',
+      manualString: 'Manual',
+      reference: 'Hint',
+      stage: 'Stage',
+      reason: 'Reason',
+      sampleRate: 'Hz',
+      signal: 'RMS',
+      peak: 'Peak',
+      clipping: 'Clip',
+      minimum: 'Min',
+      retention: 'Hold',
+      counters: 'Frames',
+      smoothing: 'Smooth',
+      note: 'Note',
+      broad: 'Broad',
+      refined: 'Refined',
+      selected: 'Used',
+      refinement: 'Window',
+      comparison: 'Compare',
+      events: 'Events',
+      fallback: 'Fallback',
     },
     profiles: {
       sensivel: 'Sensitive',
@@ -178,6 +232,33 @@ export const translations: Record<Locale, TranslationDictionary> = {
       confirm: 'Instalar',
       close: 'Fechar',
     },
+    debug: {
+      title: 'Debug',
+      detector: 'Detector',
+      profile: 'Perfil',
+      strings: 'Cordas',
+      mode: 'Modo',
+      manualString: 'Manual',
+      reference: 'Hint',
+      stage: 'Etapa',
+      reason: 'Motivo',
+      sampleRate: 'Hz',
+      signal: 'RMS',
+      peak: 'Pico',
+      clipping: 'Clip',
+      minimum: 'Min',
+      retention: 'Hold',
+      counters: 'Frames',
+      smoothing: 'Suave',
+      note: 'Nota',
+      broad: 'Amplo',
+      refined: 'Refino',
+      selected: 'Usado',
+      refinement: 'Janela',
+      comparison: 'Comparar',
+      events: 'Eventos',
+      fallback: 'Fallback',
+    },
     profiles: {
       sensivel: 'Sensivel',
       balanceado: 'Balanceado',
@@ -247,6 +328,33 @@ export const translations: Record<Locale, TranslationDictionary> = {
       iosStepAdd: 'Toca Agregar a pantalla de inicio.',
       confirm: 'Instalar',
       close: 'Cerrar',
+    },
+    debug: {
+      title: 'Debug',
+      detector: 'Detector',
+      profile: 'Perfil',
+      strings: 'Cuerdas',
+      mode: 'Modo',
+      manualString: 'Manual',
+      reference: 'Hint',
+      stage: 'Etapa',
+      reason: 'Motivo',
+      sampleRate: 'Hz',
+      signal: 'RMS',
+      peak: 'Pico',
+      clipping: 'Clip',
+      minimum: 'Min',
+      retention: 'Hold',
+      counters: 'Frames',
+      smoothing: 'Suave',
+      note: 'Nota',
+      broad: 'Amplio',
+      refined: 'Refino',
+      selected: 'Usado',
+      refinement: 'Ventana',
+      comparison: 'Comparar',
+      events: 'Eventos',
+      fallback: 'Fallback',
     },
     profiles: {
       sensivel: 'Sensible',
