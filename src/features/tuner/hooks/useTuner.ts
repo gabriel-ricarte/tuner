@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { CAPTURE_PROFILES, DEFAULT_CAPTURE_PROFILE_ID } from '@/lib/audio/captureProfiles';
+import { getAudioContext } from '@/lib/audio/audioContext';
 import { getAudioCaptureEnvironment } from '@/lib/audio/device';
-import { prepareAudioFrame } from '@/lib/audio/frameAnalysis';
+import { prepareAudioFrame, preparePitchInputFrame } from '@/lib/audio/frameAnalysis';
 import { createMicrophoneController } from '@/lib/audio/microphone';
 import { DEFAULT_PITCH_DETECTOR_ID } from '@/lib/pitch/detectors/registry';
+import { resolveDetectionConsensus } from '@/lib/pitch/detectionConsensus';
 import { detectPitch } from '@/lib/pitch/detectPitch';
+import { primeAubioPitchDetector } from '@/lib/pitch/detectors/aubioPitchDetector';
 import {
   centsOffFromPitch,
   createDetectedNote,
@@ -37,7 +40,7 @@ import {
 } from '@/shared/constants/tuner';
 import { translations } from '@/lib/i18n/translations';
 import type { Locale } from '@/shared/types/i18n';
-import type { CaptureProfileId } from '@/shared/types/audio';
+import type { CaptureProfileId, PitchDetectionResult } from '@/shared/types/audio';
 import type { PitchDetectorId } from '@/shared/types/pitch';
 import type {
   DetectedNote,
@@ -66,6 +69,23 @@ const microphone = createMicrophoneController({
   smoothingTimeConstant: 0.82
 });
 const captureEnvironment = getAudioCaptureEnvironment();
+
+function buildEmptyDetectorComparison(): TunerDebugState['detectorComparison'] {
+  return {
+    'autocorrelate-stable': {
+      frequency: null,
+      confidence: 0,
+    },
+    'autocorrelate-classic': {
+      frequency: null,
+      confidence: 0,
+    },
+    'aubio-default': {
+      frequency: null,
+      confidence: 0,
+    },
+  };
+}
 
 function buildInitialSnapshot(manualStringId: GuitarStringId): TunerSnapshot {
   const baseTarget = GUITAR_STRING_MAP[manualStringId];
@@ -120,16 +140,11 @@ function buildInitialDebugState(
     selectedConfidence: 0,
     refinementMinFrequency: null,
     refinementMaxFrequency: null,
-    detectorComparison: {
-      'autocorrelate-stable': {
-        frequency: null,
-        confidence: 0,
-      },
-      'autocorrelate-classic': {
-        frequency: null,
-        confidence: 0,
-      },
-    },
+    chosenDetector: null,
+    arbitrationReason: null,
+    harmonicConflict: false,
+    agreementScore: 0,
+    detectorComparison: buildEmptyDetectorComparison(),
     events: [],
   };
 }
@@ -295,9 +310,18 @@ export function useTuner(locale: Locale): TunerHookResult {
       sampleRate: analysis.sampleRate,
       emphasisFrequency,
     });
+    const pitchInputFrame = preparePitchInputFrame(analysis.buffer, captureProfile, {
+      sampleRate: analysis.sampleRate,
+      emphasisFrequency: mode === 'manual' ? emphasisFrequency : null,
+      lightEmphasis: true,
+    });
     const signalLevel = preparedFrame.quality.rms;
     const effectiveFrameQuality = {
       ...preparedFrame.quality,
+      hasMinimumSignal: signalLevel >= getEffectiveHoldSignalLevel(captureProfile.holdRms),
+    };
+    const pitchFrameQuality = {
+      ...pitchInputFrame.quality,
       hasMinimumSignal: signalLevel >= getEffectiveHoldSignalLevel(captureProfile.holdRms),
     };
     const nextDebugBase = {
@@ -358,10 +382,11 @@ export function useTuner(locale: Locale): TunerHookResult {
             selectedConfidence: 0,
             refinementMinFrequency: null,
             refinementMaxFrequency: null,
-            detectorComparison: {
-              'autocorrelate-stable': { frequency: null, confidence: 0 },
-              'autocorrelate-classic': { frequency: null, confidence: 0 },
-            },
+            chosenDetector: null,
+            arbitrationReason: null,
+            harmonicConflict: false,
+            agreementScore: 0,
+            detectorComparison: buildEmptyDetectorComparison(),
           },
           debugSignature,
           {
@@ -418,16 +443,49 @@ export function useTuner(locale: Locale): TunerHookResult {
     };
     const stableBroadDetection = detectPitch(broadInput, 'autocorrelate-stable');
     const classicBroadDetection = detectPitch(broadInput, 'autocorrelate-classic');
-    const broadDetection = selectDetectionCandidate(
-      pitchDetectorId,
-      stableBroadDetection,
-      classicBroadDetection,
-    );
+    const aubioBroadDetection = detectPitch({
+      buffer: pitchInputFrame.buffer,
+      sampleRate: analysis.sampleRate,
+      options: {
+        captureProfile,
+        frameQuality: pitchFrameQuality,
+        previousFrequency: lastValidSnapshot.current.frequency,
+        expectedFrequency:
+          mode === 'manual'
+            ? GUITAR_STRING_MAP[manualStringId].frequency
+            : referenceStringId !== null
+              ? GUITAR_STRING_MAP[referenceStringId].frequency
+              : undefined,
+        expectedToleranceRatio: mode === 'manual' ? 0.16 : 0.2,
+        expectedBonus: mode === 'manual' ? 0.08 : 0.04,
+      },
+    }, 'aubio-default');
+    const expectedFrequency =
+      mode === 'manual'
+        ? GUITAR_STRING_MAP[manualStringId].frequency
+        : referenceStringId !== null
+          ? GUITAR_STRING_MAP[referenceStringId].frequency
+          : null;
+    const broadConsensus = resolveDetectionConsensus({
+      preferredDetectorId: pitchDetectorId,
+      detections: {
+        'autocorrelate-stable': stableBroadDetection,
+        'autocorrelate-classic': classicBroadDetection,
+        'aubio-default': aubioBroadDetection,
+      },
+      expectedFrequency,
+      previousFrequency: lastValidSnapshot.current.frequency,
+      mode,
+      manualStringId,
+      referenceStringId,
+      isLikelyMobileSafari: captureEnvironment.isLikelyMobileSafari,
+    });
+    const broadDetection = broadConsensus.detection;
     const refinementHints = resolveRefinementHints(
       mode,
       manualStringId,
       stringTypeId,
-      broadDetection?.frequency ?? null,
+      resolveRefinementSourceFrequency(broadDetection, aubioBroadDetection) ?? null,
     );
     const refinedStableDetection =
       broadDetection !== null && refinementHints !== null
@@ -465,12 +523,23 @@ export function useTuner(locale: Locale): TunerHookResult {
             },
           }, 'autocorrelate-classic')
         : null;
-    const refinedDetection = selectDetectionCandidate(
-      pitchDetectorId,
-      refinedStableDetection,
-      refinedClassicDetection,
-    );
+    const refinedConsensus = resolveDetectionConsensus({
+      preferredDetectorId: pitchDetectorId,
+      detections: {
+        'autocorrelate-stable': refinedStableDetection,
+        'autocorrelate-classic': refinedClassicDetection,
+        'aubio-default': aubioBroadDetection,
+      },
+      expectedFrequency: refinementHints?.expectedFrequency ?? expectedFrequency,
+      previousFrequency: lastValidSnapshot.current.frequency,
+      mode,
+      manualStringId,
+      referenceStringId,
+      isLikelyMobileSafari: captureEnvironment.isLikelyMobileSafari,
+    });
+    const refinedDetection = refinedConsensus.detection;
     const detection = refinedDetection ?? broadDetection;
+    const selectedConsensus = refinedDetection === null ? broadConsensus : refinedConsensus;
     setDebug((current) => ({
       ...current,
       ...nextDebugBase,
@@ -482,6 +551,10 @@ export function useTuner(locale: Locale): TunerHookResult {
       selectedConfidence: detection?.confidence ?? 0,
       refinementMinFrequency: refinementHints?.minFrequency ?? null,
       refinementMaxFrequency: refinementHints?.maxFrequency ?? null,
+      chosenDetector: selectedConsensus.chosenDetector,
+      arbitrationReason: selectedConsensus.reason,
+      harmonicConflict: selectedConsensus.harmonicConflict,
+      agreementScore: selectedConsensus.agreementScore,
       detectorComparison: {
         'autocorrelate-stable': {
           frequency: stableBroadDetection?.frequency ?? null,
@@ -490,6 +563,10 @@ export function useTuner(locale: Locale): TunerHookResult {
         'autocorrelate-classic': {
           frequency: classicBroadDetection?.frequency ?? null,
           confidence: classicBroadDetection?.confidence ?? 0,
+        },
+        'aubio-default': {
+          frequency: aubioBroadDetection?.frequency ?? null,
+          confidence: aubioBroadDetection?.confidence ?? 0,
         },
       },
     }));
@@ -653,7 +730,10 @@ export function useTuner(locale: Locale): TunerHookResult {
           timestamp: now,
           stage: 'accepted',
           reason: null,
-          detail: `${note.label} ${nextFrequency.toFixed(2)}Hz c=${detection.confidence.toFixed(2)}`,
+          detail:
+            `${note.label} ${nextFrequency.toFixed(2)}Hz ` +
+            `c=${detection.confidence.toFixed(2)} d=${selectedConsensus.chosenDetector ?? 'none'} ` +
+            `r=${selectedConsensus.reason}`,
         },
       ),
     );
@@ -669,6 +749,7 @@ export function useTuner(locale: Locale): TunerHookResult {
 
     try {
       await microphone.start();
+      primeAubioPitchDetector(getAudioContext().sampleRate);
       if (animationFrameId.current !== null) {
         cancelAnimationFrame(animationFrameId.current);
       }
@@ -804,30 +885,6 @@ function getEffectiveMinimumGoodFrames(minGoodFrames: number) {
   }
 
   return Math.max(1, minGoodFrames - 1);
-}
-
-function selectDetectionCandidate(
-  preferredDetectorId: PitchDetectorId,
-  stableDetection: ReturnType<typeof detectPitch>,
-  classicDetection: ReturnType<typeof detectPitch>,
-) {
-  if (!captureEnvironment.isLikelyMobileSafari) {
-    return preferredDetectorId === 'autocorrelate-classic'
-      ? classicDetection
-      : stableDetection;
-  }
-
-  if (stableDetection === null) {
-    return classicDetection;
-  }
-
-  if (classicDetection === null) {
-    return stableDetection;
-  }
-
-  return stableDetection.confidence >= classicDetection.confidence
-    ? stableDetection
-    : classicDetection;
 }
 
 function getAdaptiveSmoothing(confidence: number) {
@@ -1004,6 +1061,21 @@ function resolveRefinementHints(
     expectedToleranceRatio: window.expectedToleranceRatio,
     expectedBonus: window.expectedBonus,
   };
+}
+
+function resolveRefinementSourceFrequency(
+  primaryDetection: PitchDetectionResult | null,
+  aubioDetection: PitchDetectionResult | null,
+) {
+  if (primaryDetection !== null) {
+    return primaryDetection.frequency;
+  }
+
+  if (aubioDetection === null) {
+    return null;
+  }
+
+  return aubioDetection.confidence >= 0.78 ? aubioDetection.frequency : null;
 }
 
 function resolveFrameEmphasisFrequency(

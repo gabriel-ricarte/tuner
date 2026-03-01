@@ -1,10 +1,10 @@
 import { DEFAULT_PITCH_DETECTOR_ID, getPitchDetector } from '@/lib/pitch/detectors/registry';
 import type { PitchDetectorInput } from '@/lib/pitch/detectors/types';
-import type { PitchDetectorId } from '@/shared/types/pitch';
+import type { RuntimePitchDetectorId } from '@/shared/types/pitch';
 
 export function detectPitch(
   input: PitchDetectorInput,
-  detectorId: PitchDetectorId = DEFAULT_PITCH_DETECTOR_ID,
+  detectorId: RuntimePitchDetectorId = DEFAULT_PITCH_DETECTOR_ID,
 ) {
   return getPitchDetector(detectorId).detect(input);
 }

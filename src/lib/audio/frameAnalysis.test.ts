@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CAPTURE_PROFILES } from '@/lib/audio/captureProfiles';
-import { prepareAudioFrame } from '@/lib/audio/frameAnalysis';
-import { createDcOffsetSignal, createSineWave } from '@/test/signalFactory';
+import { prepareAudioFrame, preparePitchInputFrame } from '@/lib/audio/frameAnalysis';
+import { SAMPLE_RATE, createDcOffsetSignal, createSineWave } from '@/test/signalFactory';
 
 describe('prepareAudioFrame', () => {
   it('removes DC offset from the buffer', () => {
@@ -43,5 +43,20 @@ describe('prepareAudioFrame', () => {
     expect(loud.quality.hasMinimumSignal).toBe(true);
     expect(quiet.quality.rms).toBeGreaterThan(CAPTURE_PROFILES.balanceado.holdRms);
     expect(quiet.quality.hasMinimumSignal).toBe(true);
+  });
+
+  it('keeps the pitch input frame lighter than the gate frame for the same signal', () => {
+    const input = createSineWave(196, { amplitude: 0.02 });
+    const gateFrame = prepareAudioFrame(input, CAPTURE_PROFILES.balanceado, {
+      sampleRate: SAMPLE_RATE,
+      emphasisFrequency: 196,
+    });
+    const pitchFrame = preparePitchInputFrame(input, CAPTURE_PROFILES.balanceado, {
+      sampleRate: SAMPLE_RATE,
+      emphasisFrequency: 196,
+    });
+
+    expect(pitchFrame.quality.peak).toBeLessThanOrEqual(gateFrame.quality.peak);
+    expect(pitchFrame.quality.rms).toBeLessThan(gateFrame.quality.rms);
   });
 });

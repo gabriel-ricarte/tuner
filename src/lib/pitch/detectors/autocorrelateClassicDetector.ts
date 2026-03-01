@@ -97,6 +97,7 @@ function detectClassicAutocorrelate(
   return {
     frequency,
     confidence,
+    detector: 'autocorrelate-classic',
   };
 }
 

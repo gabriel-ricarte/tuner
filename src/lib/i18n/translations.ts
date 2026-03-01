@@ -173,6 +173,8 @@ export const translations: Record<Locale, TranslationDictionary> = {
     pitchDetectors: {
       'autocorrelate-stable': 'Stable',
       'autocorrelate-classic': 'Classic',
+      'aubio-default': 'Aubio',
+      hybrid: 'Hybrid',
     },
     stringTypes: {
       steel: 'Steel',
@@ -270,6 +272,8 @@ export const translations: Record<Locale, TranslationDictionary> = {
     pitchDetectors: {
       'autocorrelate-stable': 'Estavel',
       'autocorrelate-classic': 'Classico',
+      'aubio-default': 'Aubio',
+      hybrid: 'Hibrido',
     },
     stringTypes: {
       steel: 'Aco',
@@ -368,6 +372,8 @@ export const translations: Record<Locale, TranslationDictionary> = {
     pitchDetectors: {
       'autocorrelate-stable': 'Estable',
       'autocorrelate-classic': 'Clasico',
+      'aubio-default': 'Aubio',
+      hybrid: 'Hibrido',
     },
     stringTypes: {
       steel: 'Acero',

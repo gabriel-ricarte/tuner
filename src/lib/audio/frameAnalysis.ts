@@ -8,6 +8,7 @@ export type PreparedAudioFrame = {
 type AudioFrameProcessingOptions = {
   sampleRate?: number;
   emphasisFrequency?: number | null;
+  lightEmphasis?: boolean;
 };
 
 export function prepareAudioFrame(
@@ -15,21 +16,15 @@ export function prepareAudioFrame(
   profile: Pick<CaptureProfileConfig, 'holdRms' | 'clippingThreshold'>,
   options: AudioFrameProcessingOptions = {},
 ): PreparedAudioFrame {
-  const output = Float32Array.from(input);
-  const dcOffset = calculateMean(output);
-
-  for (let index = 0; index < output.length; index += 1) {
-    const centered = output[index] - dcOffset;
-    output[index] = centered;
-  }
-
-  const baseStats = calculateSignalStats(output);
+  const { centeredBuffer, dcOffset } = createCenteredBuffer(input);
+  const baseStats = calculateSignalStats(centeredBuffer);
   const adaptiveGain = resolveAdaptiveGain(baseStats.rms, profile.holdRms);
-  const gainedBuffer = applyGainWithSoftLimit(output, adaptiveGain);
+  const gainedBuffer = applyGainWithSoftLimit(centeredBuffer, adaptiveGain);
   const emphasizedBuffer = applyBandEmphasis(
     gainedBuffer,
     options.sampleRate ?? 0,
     options.emphasisFrequency ?? null,
+    options.lightEmphasis ?? false,
   );
   const processedStats = calculateSignalStats(emphasizedBuffer);
   const normalization = processedStats.peak > 0 ? 1 / processedStats.peak : 1;
@@ -47,6 +42,54 @@ export function prepareAudioFrame(
       hasMinimumSignal: processedStats.rms >= profile.holdRms,
       dcOffset,
     },
+  };
+}
+
+export function preparePitchInputFrame(
+  input: Float32Array,
+  profile: Pick<CaptureProfileConfig, 'holdRms' | 'clippingThreshold'>,
+  options: AudioFrameProcessingOptions = {},
+): PreparedAudioFrame {
+  const { centeredBuffer, dcOffset } = createCenteredBuffer(input);
+  const baseStats = calculateSignalStats(centeredBuffer);
+  const adaptiveGain = resolveLightAdaptiveGain(baseStats.rms, profile.holdRms);
+  const gainedBuffer = applyLinearGain(centeredBuffer, adaptiveGain);
+  const emphasizedBuffer = applyBandEmphasis(
+    gainedBuffer,
+    options.sampleRate ?? 0,
+    options.emphasisFrequency ?? null,
+    true,
+  );
+  const processedStats = calculateSignalStats(emphasizedBuffer);
+  const normalization = processedStats.peak > 1 ? 1 / processedStats.peak : 1;
+
+  for (let index = 0; index < emphasizedBuffer.length; index += 1) {
+    emphasizedBuffer[index] *= normalization;
+  }
+
+  return {
+    buffer: emphasizedBuffer,
+    quality: {
+      rms: processedStats.rms,
+      peak: Math.min(1, processedStats.peak),
+      hasClipping: processedStats.peak >= profile.clippingThreshold,
+      hasMinimumSignal: processedStats.rms >= profile.holdRms,
+      dcOffset,
+    },
+  };
+}
+
+function createCenteredBuffer(input: Float32Array) {
+  const centeredBuffer = Float32Array.from(input);
+  const dcOffset = calculateMean(centeredBuffer);
+
+  for (let index = 0; index < centeredBuffer.length; index += 1) {
+    centeredBuffer[index] -= dcOffset;
+  }
+
+  return {
+    centeredBuffer,
+    dcOffset,
   };
 }
 
@@ -81,6 +124,29 @@ function resolveAdaptiveGain(rms: number, minimumRms: number) {
   return Math.min(6, Math.max(1, rawGain));
 }
 
+function resolveLightAdaptiveGain(rms: number, minimumRms: number) {
+  if (rms <= 0.0001) {
+    return 1;
+  }
+
+  const targetRms = Math.max(0.02, minimumRms * 1.6);
+  return Math.min(2.25, Math.max(1, targetRms / rms));
+}
+
+function applyLinearGain(buffer: Float32Array, gain: number) {
+  if (gain === 1) {
+    return Float32Array.from(buffer);
+  }
+
+  const output = new Float32Array(buffer.length);
+
+  for (let index = 0; index < buffer.length; index += 1) {
+    output[index] = buffer[index] * gain;
+  }
+
+  return output;
+}
+
 function applyGainWithSoftLimit(buffer: Float32Array, gain: number) {
   if (gain === 1) {
     return Float32Array.from(buffer);
@@ -99,6 +165,7 @@ function applyBandEmphasis(
   buffer: Float32Array,
   sampleRate: number,
   emphasisFrequency: number | null,
+  lightEmphasis: boolean,
 ) {
   if (sampleRate <= 0 || emphasisFrequency === null) {
     return Float32Array.from(buffer);
@@ -112,9 +179,9 @@ function applyBandEmphasis(
 
   for (let index = 0; index < buffer.length; index += 1) {
     output[index] =
-      buffer[index] * 0.72 +
-      primaryBand[index] * 0.9 +
-      harmonicBand[index] * 0.42;
+      buffer[index] * (lightEmphasis ? 0.9 : 0.72) +
+      primaryBand[index] * (lightEmphasis ? 0.22 : 0.9) +
+      harmonicBand[index] * (lightEmphasis ? 0.08 : 0.42);
   }
 
   return output;

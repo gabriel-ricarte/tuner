@@ -1,5 +1,5 @@
 import type { CaptureProfileId } from '@/shared/types/audio';
-import type { PitchDetectorId } from '@/shared/types/pitch';
+import type { PitchDetectorId, RuntimePitchDetectorId } from '@/shared/types/pitch';
 
 export type TunerStatus =
   | 'idle'
@@ -77,8 +77,12 @@ export type TunerDebugState = {
   selectedConfidence: number;
   refinementMinFrequency: number | null;
   refinementMaxFrequency: number | null;
+  chosenDetector: RuntimePitchDetectorId | null;
+  arbitrationReason: string | null;
+  harmonicConflict: boolean;
+  agreementScore: number;
   detectorComparison: Record<
-    PitchDetectorId,
+    RuntimePitchDetectorId,
     {
       frequency: number | null;
       confidence: number;

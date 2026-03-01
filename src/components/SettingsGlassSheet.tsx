@@ -1,8 +1,10 @@
 import { CaptureProfileSelector } from '@/features/tuner/components/CaptureProfileSelector';
+import { PitchAlgorithmSelector } from '@/features/tuner/components/PitchAlgorithmSelector';
 import { StringTypeSelector } from '@/features/tuner/components/StringTypeSelector';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import type { CaptureProfileId } from '@/shared/types/audio';
 import type { Locale } from '@/shared/types/i18n';
+import type { PitchDetectorId } from '@/shared/types/pitch';
 import type { StringTypeId } from '@/shared/types/tuner';
 
 type SettingsGlassSheetProps = {
@@ -13,13 +15,17 @@ type SettingsGlassSheetProps = {
   languageLabel: string;
   stringTypeId: StringTypeId;
   stringTypeLabel: string;
+  pitchDetectorId: PitchDetectorId;
+  pitchDetectorLabel: string;
   captureProfileId: CaptureProfileId;
   captureProfileLabel: string;
   stringTypeNames: Record<StringTypeId, string>;
   profileNames: Record<CaptureProfileId, string>;
+  pitchDetectorNames: Record<PitchDetectorId, string>;
   onClose: () => void;
   onLocaleChange: (locale: Locale) => void;
   onStringTypeChange: (stringTypeId: StringTypeId) => void;
+  onPitchDetectorChange: (pitchDetectorId: PitchDetectorId) => void;
   onCaptureProfileChange: (profileId: CaptureProfileId) => void;
 };
 
@@ -31,13 +37,17 @@ export function SettingsGlassSheet({
   languageLabel,
   stringTypeId,
   stringTypeLabel,
+  pitchDetectorId,
+  pitchDetectorLabel,
   captureProfileId,
   captureProfileLabel,
   stringTypeNames,
   profileNames,
+  pitchDetectorNames,
   onClose,
   onLocaleChange,
   onStringTypeChange,
+  onPitchDetectorChange,
   onCaptureProfileChange,
 }: SettingsGlassSheetProps) {
   if (!open) {
@@ -67,6 +77,17 @@ export function SettingsGlassSheet({
               label: stringTypeLabel,
               steel: stringTypeNames.steel,
               nylon: stringTypeNames.nylon,
+            }}
+          />
+          <PitchAlgorithmSelector
+            onChange={onPitchDetectorChange}
+            pitchDetectorId={pitchDetectorId}
+            text={{
+              label: pitchDetectorLabel,
+              stable: pitchDetectorNames['autocorrelate-stable'],
+              classic: pitchDetectorNames['autocorrelate-classic'],
+              aubio: pitchDetectorNames['aubio-default'],
+              hybrid: pitchDetectorNames.hybrid,
             }}
           />
           <CaptureProfileSelector

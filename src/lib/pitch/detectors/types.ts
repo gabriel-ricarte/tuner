@@ -3,6 +3,7 @@ import type {
   FrameQuality,
   PitchDetectionResult,
 } from '@/shared/types/audio';
+import type { RuntimePitchDetectorId } from '@/shared/types/pitch';
 
 export type PitchDetectorOptions = {
   captureProfile?: Pick<CaptureProfileConfig, 'maxFrequencyJumpRatio'>;
@@ -23,6 +24,6 @@ export type PitchDetectorInput = {
 };
 
 export type PitchDetector = {
-  id: string;
+  id: RuntimePitchDetectorId;
   detect: (input: PitchDetectorInput) => PitchDetectionResult | null;
 };

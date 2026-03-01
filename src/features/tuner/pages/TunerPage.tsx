@@ -109,8 +109,12 @@ export function TunerPage() {
         onCaptureProfileChange={tuner.setCaptureProfile}
         onClose={() => setSettingsOpen(false)}
         onLocaleChange={setLocale}
+        onPitchDetectorChange={tuner.setPitchDetector}
         onStringTypeChange={tuner.setStringType}
         open={settingsOpen}
+        pitchDetectorId={tuner.pitchDetectorId}
+        pitchDetectorLabel={t.labels.pitchDetector}
+        pitchDetectorNames={t.pitchDetectors}
         profileNames={t.profiles}
         stringTypeId={tuner.stringTypeId}
         stringTypeLabel={t.labels.stringType}

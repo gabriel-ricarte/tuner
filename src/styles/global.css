@@ -428,6 +428,10 @@ button {
   grid-template-columns: repeat(2, 1fr);
 }
 
+.toolbar-group--algorithm .toolbar-toggle--quad {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .toolbar-label {
   color: var(--text-muted);
   font-size: 0.68rem;

@@ -1,15 +1,17 @@
+import { aubioPitchDetector } from '@/lib/pitch/detectors/aubioPitchDetector';
 import { autocorrelateClassicDetector } from '@/lib/pitch/detectors/autocorrelateClassicDetector';
 import { autocorrelateDetector } from '@/lib/pitch/detectors/autocorrelateDetector';
 import type { PitchDetector } from '@/lib/pitch/detectors/types';
-import type { PitchDetectorId } from '@/shared/types/pitch';
+import type { RuntimePitchDetectorId } from '@/shared/types/pitch';
 
-export const DEFAULT_PITCH_DETECTOR_ID: PitchDetectorId = 'autocorrelate-stable';
+export const DEFAULT_PITCH_DETECTOR_ID: RuntimePitchDetectorId = 'autocorrelate-stable';
 
-export const PITCH_DETECTORS: Record<PitchDetectorId, PitchDetector> = {
+export const PITCH_DETECTORS: Record<RuntimePitchDetectorId, PitchDetector> = {
   'autocorrelate-stable': autocorrelateDetector,
   'autocorrelate-classic': autocorrelateClassicDetector,
+  'aubio-default': aubioPitchDetector,
 };
 
-export function getPitchDetector(detectorId: PitchDetectorId) {
+export function getPitchDetector(detectorId: RuntimePitchDetectorId) {
   return PITCH_DETECTORS[detectorId];
 }

@@ -1,3 +1,5 @@
+import type { RuntimePitchDetectorId } from '@/shared/types/pitch';
+
 export type CaptureProfileId = 'sensivel' | 'balanceado' | 'estrito';
 
 export type CaptureProfileConfig = {
@@ -21,6 +23,8 @@ export type FrameQuality = {
 export type PitchDetectionResult = {
   frequency: number;
   confidence: number;
+  detector: RuntimePitchDetectorId;
+  debug?: Record<string, unknown>;
 };
 
 export type MicrophoneSession = {

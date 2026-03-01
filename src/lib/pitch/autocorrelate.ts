@@ -107,6 +107,7 @@ export function autoCorrelate(
   return {
     frequency,
     confidence,
+    detector: 'autocorrelate-stable',
   };
 }
 
