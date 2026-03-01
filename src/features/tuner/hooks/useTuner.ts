@@ -282,10 +282,19 @@ export function useTuner(locale: Locale): TunerHookResult {
       mode === 'manual'
         ? manualStringId
         : lastValidSnapshot.current.targetString?.id ?? null;
+    const emphasisFrequency = resolveFrameEmphasisFrequency(
+      mode,
+      manualStringId,
+      referenceStringId,
+      lastValidSnapshot.current.frequency,
+    );
     const minimumSignalLevel = hasRecentReading
       ? getEffectiveHoldSignalLevel(captureProfile.holdRms)
       : getEffectiveEntrySignalLevel(captureProfile.entryRms);
-    const preparedFrame = prepareAudioFrame(analysis.buffer, captureProfile);
+    const preparedFrame = prepareAudioFrame(analysis.buffer, captureProfile, {
+      sampleRate: analysis.sampleRate,
+      emphasisFrequency,
+    });
     const signalLevel = preparedFrame.quality.rms;
     const effectiveFrameQuality = {
       ...preparedFrame.quality,
@@ -985,6 +994,23 @@ function resolveRefinementHints(
     expectedToleranceRatio: window.expectedToleranceRatio,
     expectedBonus: window.expectedBonus,
   };
+}
+
+function resolveFrameEmphasisFrequency(
+  mode: TunerMode,
+  manualStringId: GuitarStringId,
+  referenceStringId: GuitarStringId | null,
+  lastDetectedFrequency: number | null,
+) {
+  if (mode === 'manual') {
+    return GUITAR_STRING_MAP[manualStringId].frequency;
+  }
+
+  if (referenceStringId !== null) {
+    return GUITAR_STRING_MAP[referenceStringId].frequency;
+  }
+
+  return lastDetectedFrequency;
 }
 
 function resolveAutoReferenceStringId(

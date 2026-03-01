@@ -66,8 +66,7 @@ button {
   min-height: 100vh;
   min-height: 100dvh;
   align-content: start;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .top-toolbar {
@@ -603,70 +602,6 @@ button {
 .glass-sheet__content {
   display: grid;
   gap: 0.68rem;
-}
-
-.debug-panel {
-  display: grid;
-  gap: 0.7rem;
-  padding: 0.9rem;
-  background: rgba(10, 16, 21, 0.9);
-  border: 1px solid rgba(245, 243, 234, 0.08);
-  border-radius: 1.35rem;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.2);
-}
-
-.debug-panel__title {
-  margin: 0;
-  color: rgba(245, 243, 234, 0.92);
-  font-size: 0.76rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.debug-panel__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 5rem) minmax(0, 1fr);
-  gap: 0.36rem 0.7rem;
-  font-size: 0.72rem;
-}
-
-.debug-panel__grid span {
-  color: var(--text-muted);
-}
-
-.debug-panel__grid strong {
-  overflow-wrap: anywhere;
-}
-
-.debug-panel__events {
-  display: grid;
-  gap: 0.42rem;
-}
-
-.debug-panel__events-label {
-  color: var(--text-muted);
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.debug-panel__events-list {
-  margin: 0;
-  padding-left: 1rem;
-  display: grid;
-  gap: 0.32rem;
-  color: rgba(245, 243, 234, 0.84);
-  font-size: 0.72rem;
-}
-
-.debug-panel__events-list li {
-  display: grid;
-  gap: 0.1rem;
-}
-
-.debug-panel__events-list span,
-.debug-panel__events-list code {
-  color: var(--text-muted);
 }
 
 .install-sheet {
