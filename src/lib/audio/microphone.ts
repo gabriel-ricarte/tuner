@@ -1,4 +1,5 @@
 import { getAudioContext } from '@/lib/audio/audioContext';
+import { getAudioCaptureEnvironment } from '@/lib/audio/device';
 import type { MicrophoneSession } from '@/shared/types/audio';
 
 type MicrophoneControllerOptions = {
@@ -13,6 +14,7 @@ type AudioAnalysis = {
 };
 
 export function createMicrophoneController(options: MicrophoneControllerOptions) {
+  const captureEnvironment = getAudioCaptureEnvironment();
   let stream: MediaStream | null = null;
   let source: MediaStreamAudioSourceNode | null = null;
   let analyser: AnalyserNode | null = null;
@@ -23,12 +25,16 @@ export function createMicrophoneController(options: MicrophoneControllerOptions)
     usedFallback: false,
   };
 
-  const preferredConstraints: MediaTrackConstraints = {
-    echoCancellation: false,
-    noiseSuppression: false,
-    autoGainControl: false,
-    channelCount: 1,
-  };
+  const preferredConstraints: MediaTrackConstraints = captureEnvironment.isLikelyMobileSafari
+    ? {
+        channelCount: 1,
+      }
+    : {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+        channelCount: 1,
+      };
 
   const start = async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -48,14 +54,19 @@ export function createMicrophoneController(options: MicrophoneControllerOptions)
       return;
     }
 
-    const permissionStream = await requestPermissionStream();
+    const permissionStream = await requestPermissionStream(preferredConstraints);
 
-    try {
-      stream = await requestPreferredStream(preferredConstraints, permissionStream);
-      session.usedFallback = false;
-    } catch {
+    if (captureEnvironment.isLikelyMobileSafari) {
       stream = permissionStream;
       session.usedFallback = true;
+    } else {
+      try {
+        stream = await requestPreferredStream(preferredConstraints, permissionStream);
+        session.usedFallback = false;
+      } catch {
+        stream = permissionStream;
+        session.usedFallback = true;
+      }
     }
 
     if (audioContext.state === 'suspended') {
@@ -107,8 +118,14 @@ export function createMicrophoneController(options: MicrophoneControllerOptions)
   };
 }
 
-async function requestPermissionStream() {
-  return navigator.mediaDevices.getUserMedia({ audio: true });
+async function requestPermissionStream(preferredConstraints: MediaTrackConstraints) {
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: preferredConstraints,
+    });
+  } catch {
+    return navigator.mediaDevices.getUserMedia({ audio: true });
+  }
 }
 
 async function requestPreferredStream(

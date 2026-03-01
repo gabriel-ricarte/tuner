@@ -5,6 +5,7 @@ import { TopToolbar } from '@/components/TopToolbar';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { TunerStatusPill } from '@/components/TunerStatusPill';
 import { StringSelector } from '@/features/tuner/components/StringSelector';
+import { TunerDebugPanel } from '@/features/tuner/components/TunerDebugPanel';
 import { TunerDisplay } from '@/features/tuner/components/TunerDisplay';
 import { usePwaInstall } from '@/features/tuner/hooks/usePwaInstall';
 import { useTuner } from '@/features/tuner/hooks/useTuner';
@@ -83,6 +84,8 @@ export function TunerPage() {
         <TunerStatusPill tone={status.tone}>{status.label}</TunerStatusPill>
         {tuner.error ? <p className="error-banner">{tuner.error}</p> : null}
       </section>
+
+      <TunerDebugPanel debug={tuner.debug} text={t.debug} />
 
       <InstallPwaSheet
         availability={pwaInstall.availability}

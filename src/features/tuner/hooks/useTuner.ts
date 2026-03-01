@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { CAPTURE_PROFILES, DEFAULT_CAPTURE_PROFILE_ID } from '@/lib/audio/captureProfiles';
+import { getAudioCaptureEnvironment } from '@/lib/audio/device';
 import { prepareAudioFrame } from '@/lib/audio/frameAnalysis';
 import { createMicrophoneController } from '@/lib/audio/microphone';
 import { DEFAULT_PITCH_DETECTOR_ID } from '@/lib/pitch/detectors/registry';
@@ -64,6 +65,7 @@ const microphone = createMicrophoneController({
   fftSize: FFT_BUFFER_SIZE,
   smoothingTimeConstant: 0.82
 });
+const captureEnvironment = getAudioCaptureEnvironment();
 
 function buildInitialSnapshot(manualStringId: GuitarStringId): TunerSnapshot {
   const baseTarget = GUITAR_STRING_MAP[manualStringId];
@@ -281,10 +283,14 @@ export function useTuner(locale: Locale): TunerHookResult {
         ? manualStringId
         : lastValidSnapshot.current.targetString?.id ?? null;
     const minimumSignalLevel = hasRecentReading
-      ? captureProfile.holdRms
-      : captureProfile.entryRms;
+      ? getEffectiveHoldSignalLevel(captureProfile.holdRms)
+      : getEffectiveEntrySignalLevel(captureProfile.entryRms);
     const preparedFrame = prepareAudioFrame(analysis.buffer, captureProfile);
     const signalLevel = preparedFrame.quality.rms;
+    const effectiveFrameQuality = {
+      ...preparedFrame.quality,
+      hasMinimumSignal: signalLevel >= getEffectiveHoldSignalLevel(captureProfile.holdRms),
+    };
     const nextDebugBase = {
       detectorId: pitchDetectorId,
       captureProfileId,
@@ -311,7 +317,7 @@ export function useTuner(locale: Locale): TunerHookResult {
     if (
       signalLevel < minimumSignalLevel ||
       preparedFrame.quality.hasClipping ||
-      !preparedFrame.quality.hasMinimumSignal
+      !effectiveFrameQuality.hasMinimumSignal
     ) {
       const rejectionReason =
         signalLevel < minimumSignalLevel
@@ -397,30 +403,31 @@ export function useTuner(locale: Locale): TunerHookResult {
       sampleRate: analysis.sampleRate,
       options: {
         captureProfile,
-        frameQuality: preparedFrame.quality,
+        frameQuality: effectiveFrameQuality,
         previousFrequency: lastValidSnapshot.current.frequency,
       },
     };
     const stableBroadDetection = detectPitch(broadInput, 'autocorrelate-stable');
     const classicBroadDetection = detectPitch(broadInput, 'autocorrelate-classic');
-    const broadDetection =
-      pitchDetectorId === 'autocorrelate-classic'
-        ? classicBroadDetection
-        : stableBroadDetection;
+    const broadDetection = selectDetectionCandidate(
+      pitchDetectorId,
+      stableBroadDetection,
+      classicBroadDetection,
+    );
     const refinementHints = resolveRefinementHints(
       mode,
       manualStringId,
       stringTypeId,
       broadDetection?.frequency ?? null,
     );
-    const refinedDetection =
+    const refinedStableDetection =
       broadDetection !== null && refinementHints !== null
         ? detectPitch({
             buffer: preparedFrame.buffer,
             sampleRate: analysis.sampleRate,
             options: {
               captureProfile,
-              frameQuality: preparedFrame.quality,
+              frameQuality: effectiveFrameQuality,
               previousFrequency: lastValidSnapshot.current.frequency,
               searchMinFrequency: refinementHints.minFrequency,
               searchMaxFrequency: refinementHints.maxFrequency,
@@ -429,8 +436,31 @@ export function useTuner(locale: Locale): TunerHookResult {
               expectedToleranceRatio: refinementHints.expectedToleranceRatio,
               expectedBonus: refinementHints.expectedBonus,
             },
-          }, pitchDetectorId)
+          }, 'autocorrelate-stable')
         : null;
+    const refinedClassicDetection =
+      broadDetection !== null && refinementHints !== null
+        ? detectPitch({
+            buffer: preparedFrame.buffer,
+            sampleRate: analysis.sampleRate,
+            options: {
+              captureProfile,
+              frameQuality: effectiveFrameQuality,
+              previousFrequency: lastValidSnapshot.current.frequency,
+              searchMinFrequency: refinementHints.minFrequency,
+              searchMaxFrequency: refinementHints.maxFrequency,
+              confidenceBias: refinementHints.confidenceBias,
+              expectedFrequency: refinementHints.expectedFrequency,
+              expectedToleranceRatio: refinementHints.expectedToleranceRatio,
+              expectedBonus: refinementHints.expectedBonus,
+            },
+          }, 'autocorrelate-classic')
+        : null;
+    const refinedDetection = selectDetectionCandidate(
+      pitchDetectorId,
+      refinedStableDetection,
+      refinedClassicDetection,
+    );
     const detection = refinedDetection ?? broadDetection;
     setDebug((current) => ({
       ...current,
@@ -455,14 +485,16 @@ export function useTuner(locale: Locale): TunerHookResult {
       },
     }));
     const minimumConfidence = hasRecentReading
-      ? HOLD_DETECTION_CONFIDENCE
-      : MIN_DETECTION_CONFIDENCE;
+      ? getEffectiveHoldDetectionConfidence()
+      : getEffectiveDetectionConfidence();
+    const minimumFrequency = getEffectiveMinimumDetectionFrequency();
+    const maximumFrequency = getEffectiveMaximumDetectionFrequency();
 
     if (
       detection === null ||
       detection.confidence < minimumConfidence ||
-      detection.frequency < MIN_DETECTION_FREQUENCY ||
-      detection.frequency > MAX_DETECTION_FREQUENCY
+      detection.frequency < minimumFrequency ||
+      detection.frequency > maximumFrequency
     ) {
       const rejectionReason =
         detection === null
@@ -524,7 +556,10 @@ export function useTuner(locale: Locale): TunerHookResult {
     consecutiveBadFrames.current = 0;
     consecutiveGoodFrames.current += 1;
 
-    if (!hasRecentReading && consecutiveGoodFrames.current < captureProfile.minGoodFrames) {
+    if (
+      !hasRecentReading &&
+      consecutiveGoodFrames.current < getEffectiveMinimumGoodFrames(captureProfile.minGoodFrames)
+    ) {
       setDebug((current) =>
         withDebugEvent(
           {
@@ -543,7 +578,7 @@ export function useTuner(locale: Locale): TunerHookResult {
             timestamp: now,
             stage: 'detecting',
             reason: 'waiting-good-frames',
-            detail: `good=${consecutiveGoodFrames.current}/${captureProfile.minGoodFrames}`,
+            detail: `good=${consecutiveGoodFrames.current}/${getEffectiveMinimumGoodFrames(captureProfile.minGoodFrames)}`,
           },
         ),
       );
@@ -694,6 +729,86 @@ function withDebugEvent(
     ...nextState,
     events: [event, ...nextState.events].slice(0, 8),
   };
+}
+
+function getEffectiveEntrySignalLevel(entryRms: number) {
+  if (!captureEnvironment.isLikelyMobileSafari) {
+    return entryRms;
+  }
+
+  return Math.max(0.008, entryRms * 0.72);
+}
+
+function getEffectiveHoldSignalLevel(holdRms: number) {
+  if (!captureEnvironment.isLikelyMobileSafari) {
+    return holdRms;
+  }
+
+  return Math.max(0.006, holdRms * 0.72);
+}
+
+function getEffectiveDetectionConfidence() {
+  if (!captureEnvironment.isLikelyMobileSafari) {
+    return MIN_DETECTION_CONFIDENCE;
+  }
+
+  return Math.max(0.72, MIN_DETECTION_CONFIDENCE - 0.12);
+}
+
+function getEffectiveHoldDetectionConfidence() {
+  if (!captureEnvironment.isLikelyMobileSafari) {
+    return HOLD_DETECTION_CONFIDENCE;
+  }
+
+  return Math.max(0.6, HOLD_DETECTION_CONFIDENCE - 0.08);
+}
+
+function getEffectiveMinimumDetectionFrequency() {
+  if (!captureEnvironment.isLikelyMobileSafari) {
+    return MIN_DETECTION_FREQUENCY;
+  }
+
+  return Math.max(65, MIN_DETECTION_FREQUENCY - 10);
+}
+
+function getEffectiveMaximumDetectionFrequency() {
+  if (!captureEnvironment.isLikelyMobileSafari) {
+    return MAX_DETECTION_FREQUENCY;
+  }
+
+  return MAX_DETECTION_FREQUENCY + 40;
+}
+
+function getEffectiveMinimumGoodFrames(minGoodFrames: number) {
+  if (!captureEnvironment.isLikelyMobileSafari) {
+    return minGoodFrames;
+  }
+
+  return Math.max(1, minGoodFrames - 1);
+}
+
+function selectDetectionCandidate(
+  preferredDetectorId: PitchDetectorId,
+  stableDetection: ReturnType<typeof detectPitch>,
+  classicDetection: ReturnType<typeof detectPitch>,
+) {
+  if (!captureEnvironment.isLikelyMobileSafari) {
+    return preferredDetectorId === 'autocorrelate-classic'
+      ? classicDetection
+      : stableDetection;
+  }
+
+  if (stableDetection === null) {
+    return classicDetection;
+  }
+
+  if (classicDetection === null) {
+    return stableDetection;
+  }
+
+  return stableDetection.confidence >= classicDetection.confidence
+    ? stableDetection
+    : classicDetection;
 }
 
 function getAdaptiveSmoothing(confidence: number) {
