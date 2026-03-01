@@ -8,6 +8,7 @@ import { StringSelector } from '@/features/tuner/components/StringSelector';
 import { TunerDisplay } from '@/features/tuner/components/TunerDisplay';
 import { usePwaInstall } from '@/features/tuner/hooks/usePwaInstall';
 import { useTuner } from '@/features/tuner/hooks/useTuner';
+import { resolveStringSelectorViewState } from '@/features/tuner/viewState';
 import { useState } from 'react';
 
 export function TunerPage() {
@@ -21,6 +22,11 @@ export function TunerPage() {
     tuner.status === 'detecting' ||
     tuner.status === 'no-signal';
   const status = getStatusContent(tuner.status, tuner.error, tuner.confidence, tuner.cents, t.status);
+  const stringSelectorState = resolveStringSelectorViewState({
+    mode: tuner.mode,
+    manualStringId: tuner.manualStringId,
+    detectedTargetStringId: tuner.mode === 'auto' ? tuner.targetString?.id ?? null : null,
+  });
 
   return (
     <main className="page-shell">
@@ -59,8 +65,8 @@ export function TunerPage() {
 
       <StringSelector
         locale={locale}
-        mode={tuner.mode}
-        selectedString={tuner.mode === 'manual' ? tuner.targetString?.id ?? null : null}
+        mode={stringSelectorState.mode}
+        selectedString={stringSelectorState.selectedString}
         text={{
           tuningMode: t.labels.tuningMode,
           targetString: t.labels.targetString,
@@ -69,9 +75,6 @@ export function TunerPage() {
         }}
         onModeChange={(nextMode) => {
           tuner.setMode(nextMode);
-          if (nextMode === 'auto') {
-            tuner.setTargetString(null);
-          }
         }}
         onSelectString={tuner.setTargetString}
       />

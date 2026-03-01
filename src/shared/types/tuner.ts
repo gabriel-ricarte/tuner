@@ -103,6 +103,7 @@ export type TunerPreferences = {
 export type TunerHookResult = {
   status: TunerStatus;
   mode: TunerMode;
+  manualStringId: GuitarStringId;
   captureProfileId: CaptureProfileId;
   stringTypeId: StringTypeId;
   pitchDetectorId: PitchDetectorId;

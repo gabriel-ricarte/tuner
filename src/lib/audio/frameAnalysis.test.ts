@@ -30,7 +30,7 @@ describe('prepareAudioFrame', () => {
     expect(prepared.quality.hasClipping).toBe(true);
   });
 
-  it('marks minimum signal according to the active profile hold RMS', () => {
+  it('boosts quiet frames before evaluating minimum signal quality', () => {
     const loud = prepareAudioFrame(
       createSineWave(146.83, { amplitude: 0.08 }),
       CAPTURE_PROFILES.balanceado,
@@ -41,6 +41,7 @@ describe('prepareAudioFrame', () => {
     );
 
     expect(loud.quality.hasMinimumSignal).toBe(true);
-    expect(quiet.quality.hasMinimumSignal).toBe(false);
+    expect(quiet.quality.rms).toBeGreaterThan(CAPTURE_PROFILES.balanceado.holdRms);
+    expect(quiet.quality.hasMinimumSignal).toBe(true);
   });
 });

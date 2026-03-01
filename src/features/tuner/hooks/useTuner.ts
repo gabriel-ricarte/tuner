@@ -681,9 +681,18 @@ export function useTuner(locale: Locale): TunerHookResult {
 
   const error = errorKey === null ? null : translations[locale].errors[errorKey];
 
+  const setTunerMode = (nextMode: TunerMode) => {
+    setMode(nextMode);
+    setSnapshot((current) => ({
+      ...current,
+      targetNote: GUITAR_STRING_MAP[manualStringId],
+      targetString: nextMode === 'manual' ? GUITAR_STRING_MAP[manualStringId] : current.targetString,
+    }));
+  };
+
   const setTargetString = (value: GuitarStringId | null) => {
     if (value === null) {
-      setMode('auto');
+      setTunerMode('auto');
       return;
     }
 
@@ -699,6 +708,7 @@ export function useTuner(locale: Locale): TunerHookResult {
   return {
     status,
     mode,
+    manualStringId,
     captureProfileId,
     stringTypeId,
     pitchDetectorId,
@@ -717,7 +727,7 @@ export function useTuner(locale: Locale): TunerHookResult {
     setStringType: setStringTypeId,
     setPitchDetector: setPitchDetectorId,
     setTargetString,
-    setMode
+    setMode: setTunerMode
   };
 }
 
