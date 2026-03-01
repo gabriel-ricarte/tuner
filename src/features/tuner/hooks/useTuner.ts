@@ -15,7 +15,6 @@ import {
 } from '@/lib/storage/tunerPreferences';
 import {
   DEFAULT_SMOOTHING,
-  DETECTION_RECOVERY_FAILURE_LIMIT,
   FFT_BUFFER_SIZE,
   HOLD_DETECTION_CONFIDENCE,
   MAX_DETECTION_FREQUENCY,
@@ -174,8 +173,6 @@ export function useTuner(locale: Locale): TunerHookResult {
   const lastValidTimestamp = useRef<number | null>(null);
   const consecutiveGoodFrames = useRef(0);
   const consecutiveBadFrames = useRef(0);
-  const recognitionFailureStreak = useRef(0);
-  const isRecovering = useRef(false);
   const debugSignature = useRef<string>('idle');
   const captureProfile = CAPTURE_PROFILES[captureProfileId];
 
@@ -192,7 +189,6 @@ export function useTuner(locale: Locale): TunerHookResult {
   useEffect(() => {
     consecutiveGoodFrames.current = 0;
     consecutiveBadFrames.current = 0;
-    recognitionFailureStreak.current = 0;
     weakSignalFrames.current = 0;
     pendingNoteLabel.current = null;
     pendingNoteFrames.current = 0;
@@ -248,8 +244,6 @@ export function useTuner(locale: Locale): TunerHookResult {
     lastValidSnapshot.current = buildInitialSnapshot(manualStringId);
     consecutiveGoodFrames.current = 0;
     consecutiveBadFrames.current = 0;
-    recognitionFailureStreak.current = 0;
-    isRecovering.current = false;
     debugSignature.current = 'idle';
     setStatus('idle');
     setDebug(
@@ -267,48 +261,13 @@ export function useTuner(locale: Locale): TunerHookResult {
     }));
   };
 
-  const recoverDetection = async () => {
-    if (isRecovering.current) {
-      return;
-    }
-
-    isRecovering.current = true;
-
-    if (animationFrameId.current !== null) {
-      cancelAnimationFrame(animationFrameId.current);
-      animationFrameId.current = null;
-    }
-
-    weakSignalFrames.current = 0;
-    consecutiveGoodFrames.current = 0;
-    consecutiveBadFrames.current = 0;
-    recognitionFailureStreak.current = 0;
-    pendingNoteLabel.current = null;
-    pendingNoteFrames.current = 0;
-    pendingAutoStringId.current = null;
-    pendingAutoStringFrames.current = 0;
-    lockedNote.current = null;
-    lockedAutoStringId.current = null;
-    smoothedFrequency.current = lastValidSnapshot.current.frequency;
-    setStatus('detecting');
-
-    try {
-      await microphone.restart();
-      animationFrameId.current = requestAnimationFrame(updateFrame);
-    } catch (caughtError) {
-      setErrorKey(getMicrophoneErrorKey(caughtError));
-      setStatus('error');
-    } finally {
-      isRecovering.current = false;
-    }
-  };
-
   const updateFrame = () => {
     const analysis = microphone.read();
     const now = performance.now();
 
     if (!analysis) {
-      void recoverDetection();
+      setStatus('error');
+      setErrorKey('microphoneUnavailable');
       return;
     }
 
@@ -363,7 +322,6 @@ export function useTuner(locale: Locale): TunerHookResult {
       weakSignalFrames.current += 1;
       consecutiveBadFrames.current += 1;
       consecutiveGoodFrames.current = 0;
-      recognitionFailureStreak.current = 0;
       retainSmoothedFrequency(smoothedFrequency, lastValidSnapshot.current.frequency);
       setDebug((current) =>
         withDebugEvent(
@@ -514,7 +472,6 @@ export function useTuner(locale: Locale): TunerHookResult {
             : 'out-of-range';
       consecutiveBadFrames.current += 1;
       consecutiveGoodFrames.current = 0;
-      recognitionFailureStreak.current += 1;
       retainSmoothedFrequency(smoothedFrequency, lastValidSnapshot.current.frequency);
       setDebug((current) =>
         withDebugEvent(
@@ -542,11 +499,6 @@ export function useTuner(locale: Locale): TunerHookResult {
           },
         ),
       );
-      if (recognitionFailureStreak.current >= DETECTION_RECOVERY_FAILURE_LIMIT) {
-        void recoverDetection();
-        return;
-      }
-
       if (hasRecentReading) {
         setStatus('detecting');
         setSnapshot(buildHeldSnapshot(lastValidSnapshot.current, smoothedFrequency.current));
@@ -571,7 +523,6 @@ export function useTuner(locale: Locale): TunerHookResult {
 
     consecutiveBadFrames.current = 0;
     consecutiveGoodFrames.current += 1;
-    recognitionFailureStreak.current = 0;
 
     if (!hasRecentReading && consecutiveGoodFrames.current < captureProfile.minGoodFrames) {
       setDebug((current) =>

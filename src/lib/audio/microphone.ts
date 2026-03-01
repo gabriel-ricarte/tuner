@@ -62,9 +62,11 @@ export function createMicrophoneController(options: MicrophoneControllerOptions)
       await audioContext.resume();
     }
 
-    const attachedNodes = attachStream(audioContext, options, stream);
-    source = attachedNodes.source;
-    analyser = attachedNodes.analyser;
+    source = audioContext.createMediaStreamSource(stream);
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = options.fftSize;
+    analyser.smoothingTimeConstant = options.smoothingTimeConstant;
+    source.connect(analyser);
     buffer = new Float32Array(analyser.fftSize);
 
     const [track] = stream.getAudioTracks();
@@ -84,32 +86,6 @@ export function createMicrophoneController(options: MicrophoneControllerOptions)
     stream = null;
   };
 
-  const restart = async () => {
-    const audioContext = getAudioContext();
-    const activeStream = stream;
-    const activeTrack = activeStream?.getAudioTracks()[0] ?? null;
-
-    source?.disconnect();
-    analyser?.disconnect();
-    source = null;
-    analyser = null;
-
-    if (activeStream && activeTrack && activeTrack.readyState === 'live') {
-      if (audioContext.state === 'suspended') {
-        await audioContext.resume();
-      }
-
-      const attachedNodes = attachStream(audioContext, options, activeStream);
-      source = attachedNodes.source;
-      analyser = attachedNodes.analyser;
-      buffer = new Float32Array(analyser.fftSize);
-      return;
-    }
-
-    stop();
-    await start();
-  };
-
   const read = (): AudioAnalysis | null => {
     if (!analyser) {
       return null;
@@ -126,26 +102,8 @@ export function createMicrophoneController(options: MicrophoneControllerOptions)
 
   return {
     start,
-    restart,
     stop,
     read,
-  };
-}
-
-function attachStream(
-  audioContext: AudioContext,
-  options: MicrophoneControllerOptions,
-  stream: MediaStream,
-) {
-  const source = audioContext.createMediaStreamSource(stream);
-  const analyser = audioContext.createAnalyser();
-  analyser.fftSize = options.fftSize;
-  analyser.smoothingTimeConstant = options.smoothingTimeConstant;
-  source.connect(analyser);
-
-  return {
-    source,
-    analyser,
   };
 }
 

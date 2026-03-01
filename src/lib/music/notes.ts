@@ -2,10 +2,9 @@ import { GUITAR_STRINGS } from '@/shared/constants/tuner';
 import type { DetectedNote, GuitarString } from '@/shared/types/tuner';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-export const A4_REFERENCE_FREQUENCY = 440;
 
 export function frequencyToMidi(frequency: number) {
-  return 69 + 12 * Math.log2(frequency / A4_REFERENCE_FREQUENCY);
+  return 69 + 12 * Math.log2(frequency / 440);
 }
 
 export function midiToNoteLabel(midi: number) {
